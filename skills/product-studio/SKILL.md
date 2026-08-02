@@ -75,11 +75,11 @@ Every workflow is a QA session, but do not interrupt after every artifact:
 4. Record assumptions and decisions with IDs.
 5. Draft the artifact.
 6. Show uncertainty, rejected alternatives, and risks.
-7. Run the phase done bar and an independent review when available.
+7. Run the phase done bar and a mandatory independent review when the host can provide a fresh context.
 8. Repair the highest-impact gap and repeat the review loop until the bar passes or the agent is blocked.
 9. Return to the user at the phase checkpoint with the result, remaining uncertainty, and next decision.
 
-Ask the user immediately only when a decision is consequential, irreversible, externally costly, blocked by missing information, or conflicts with the protected outcome.
+Ask the user immediately only when a decision is consequential, irreversible, externally costly, blocked by missing information, or conflicts with the protected outcome. If no independent reviewer is available, mark the phase `self_review_only` and do not approve it silently.
 
 Do not treat document existence as approval. Never fabricate evidence. If research is unavailable, produce an assumption map and research plan with low/unknown confidence.
 
@@ -117,6 +117,7 @@ Use the internal capability contracts in `references/capabilities/` and template
 Read only the relevant contract and template for the current stage. Read `references/operating-modes.md` when selecting or explaining a mode, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
 Read `references/qa-session.md` for the exact state machine and question/draft/review protocol.
 Read `references/done-bars.md` for phase completion criteria and `references/house-rules.md` for invariant selection.
+Use `scripts/workflow_runner.py` when deterministic phase transitions, review recording, or checkpoint state are needed.
 
 For UX research, ask whether to use Mobbin, public sources, generated Mobbin queries, user references, or the bundled pattern library. Never claim Mobbin was used unless the adapter succeeds.
 

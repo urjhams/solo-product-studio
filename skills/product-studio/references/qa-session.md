@@ -26,10 +26,10 @@ Persist `session.status`, `session.current_phase`, `session.current_gate`, `sess
 1. Load the capability contract, matching template, house rules, and phase done bar.
 2. Draft every required section; use `Unknown`, `Assumption`, or `Not applicable` rather than inventing content.
 3. Evaluate the draft against the done bar and list the highest-impact gaps.
-4. Run an independent review context when available; the builder must not be the only grader.
+4. Run an independent review context. The builder must not be the only grader. If the host cannot provide one, set `approval_status: self_review_only` and keep the phase blocked for approval.
 5. Repair the highest-impact gap, increment `session.iteration_count`, and evaluate again.
 6. Repeat until the bar passes or the agent is genuinely blocked.
-7. At the phase checkpoint, show the result, remaining uncertainty, next phase, and any user decision required.
+7. At the phase checkpoint, show the result, remaining uncertainty, next phase, and any user decision required. Use `scripts/workflow_runner.py` to record the transition when deterministic state is needed.
 
 ## Failure and fallback
 

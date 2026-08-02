@@ -9,6 +9,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
+sys.path.insert(0, str(ROOT / "scripts"))
+from workflow_runner import begin_phase, checkpoint, new_state, record_review  # noqa: E402
+from workbench_adapter import detect, publish_local  # noqa: E402
 
 
 class BundleTests(unittest.TestCase):
@@ -39,6 +42,8 @@ class BundleTests(unittest.TestCase):
             self.assertIn("house_rules:", state.read_text())
             self.assertIn("current_phase: intake", state.read_text())
             self.assertIn("phases:", state.read_text())
+            self.assertIn("approval_status: pending", state.read_text())
+            self.assertIn("last_checkpoint: null", state.read_text())
             self.assertTrue((state.parent / "artifacts").is_dir())
 
     def test_install_and_uninstall_are_scoped(self):
@@ -108,6 +113,35 @@ class BundleTests(unittest.TestCase):
         text = adapter.read_text().lower()
         self.assertIn("optional", text)
         self.assertIn("local", text)
+
+    def test_workflow_runner_requires_independent_review(self):
+        state = new_state("demo")
+        begin_phase(state, "product", ["wedge defined"])
+        record_review(state, "product", "self", True, ["looks good"])
+        checkpoint(state, "product")
+        self.assertEqual(state["approval_status"], "self_review_only")
+        self.assertEqual(state["phases"]["product"]["status"], "blocked")
+        record_review(state, "product", "independent", True, [])
+        checkpoint(state, "product")
+        self.assertEqual(state["approval_status"], "approved")
+        self.assertEqual(state["phases"]["product"]["status"], "checkpointed")
+
+    def test_workflow_runner_repair_iteration_and_next_phase(self):
+        state = new_state("demo")
+        begin_phase(state, "product")
+        record_review(state, "product", "independent", False, ["wedge too broad"])
+        self.assertEqual(state["iteration_count"], 1)
+        self.assertEqual(state["next_action"], "repair-highest-impact-gap")
+        record_review(state, "product", "independent", True, [])
+        checkpoint(state, "product")
+        self.assertEqual(state["next_action"], "begin-research")
+
+    def test_workbench_detection_and_local_fallback(self):
+        self.assertEqual(detect()["status"], "unavailable")
+        with tempfile.TemporaryDirectory() as directory:
+            target = publish_local(Path(directory), {"phase": "product"})
+            self.assertTrue(target.exists())
+            self.assertIn("local_fallback", target.read_text())
 
 
 if __name__ == "__main__":

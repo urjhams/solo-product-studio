@@ -46,7 +46,11 @@ session:
   current_gate: goal-and-house-rules
   next_action: ask-intake-question
   questions: []
+  unanswered_questions: []
   iteration_count: 0
+  approval_status: pending
+  updated_at: {now}
+  last_checkpoint: null
 
 phases:
   intake: {{status: in_progress, done_bar: [goal defined, house rules confirmed]}}
