@@ -1,0 +1,1 @@
+{"type":"object","required":["promise","hero_moment","primary_flow","principles","screens","cut_list"],"properties":{"promise":{"type":"string"},"hero_moment":{"type":"string"},"primary_flow":{"type":"array"},"principles":{"type":"array","minItems":3,"maxItems":3},"screens":{"type":"array"},"cut_list":{"type":"array"}}}

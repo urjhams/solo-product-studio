@@ -1,0 +1,11 @@
+# product-lens
+
+Purpose: turn a rough idea into a narrow, testable Product Opportunity Brief.
+
+Inputs: user context, problem, stage, mode, platform, constraints.
+
+Outputs: target user, context, job-to-be-done, workaround, pain frequency/severity, cost of inaction, promise, wedge, alternatives, differentiation/retention/monetization/distribution hypotheses, assumptions, risks, next experiment.
+
+Gate: identifiable target user, specific problem, actionable outcome, narrow wedge, recorded critical uncertainties.
+
+Handoff: `evidence-scout` unless the user already has adequate evidence.

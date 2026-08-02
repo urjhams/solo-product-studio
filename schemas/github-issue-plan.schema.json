@@ -1,0 +1,1 @@
+{"type":"object","required":["repository_summary","issues","publish_status"],"properties":{"repository_summary":{"type":"string"},"issues":{"type":"array"},"publish_status":{"enum":["not_requested","pending_approval","published","local_only","failed"]}}}

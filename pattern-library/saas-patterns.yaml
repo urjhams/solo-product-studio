@@ -1,0 +1,25 @@
+patterns:
+  - name: team-invitation
+    problem_solved: Move a validated individual workflow into collaboration.
+    when_to_use: Shared ownership improves the core workflow.
+    when_not_to_use: Collaboration is not yet proven necessary.
+    mobile_guidance: Make invite optional and recoverable.
+    desktop_guidance: Show pending state and role clearly.
+    accessibility_notes: Use explicit labels and keyboard reachable actions.
+    common_failure_modes: Blocking onboarding on invites, unclear permissions.
+  - name: billing-state
+    problem_solved: Explain plan, usage, renewal, and access state.
+    when_to_use: Paid access or usage limits exist.
+    when_not_to_use: Do not build billing before willingness to pay is tested.
+    mobile_guidance: Make price, value, and cancellation legible.
+    desktop_guidance: Show invoice and entitlement history where relevant.
+    accessibility_notes: Keep price and action relationships explicit.
+    common_failure_modes: Surprise limits, dark patterns, unclear entitlement.
+  - name: search-and-filters
+    problem_solved: Find an item in a growing collection.
+    when_to_use: Retrieval is a repeated task.
+    when_not_to_use: A short list is faster to scan.
+    mobile_guidance: Keep active filters visible and reversible.
+    desktop_guidance: Support keyboard use and persistent filter context.
+    accessibility_notes: Announce result count and filter changes.
+    common_failure_modes: Hidden filters, dead ends, stale results.

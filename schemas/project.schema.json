@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["project", "capabilities", "assumptions", "decisions"],
+  "properties": {
+    "project": {"type": "object", "required": ["id", "stage", "mode", "created_at", "updated_at"]},
+    "capabilities": {"type": "object"},
+    "product": {"type": "object"},
+    "business": {"type": "object"},
+    "constraints": {"type": "object"},
+    "research": {"type": "object"},
+    "assumptions": {"type": "array"},
+    "decisions": {"type": "array"},
+    "design": {"type": "object"},
+    "mvp": {"type": "object"},
+    "production": {"type": "object"},
+    "github": {"type": "object"}
+  }
+}

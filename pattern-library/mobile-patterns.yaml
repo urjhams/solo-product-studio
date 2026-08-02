@@ -1,0 +1,33 @@
+patterns:
+  - name: onboarding
+    problem_solved: Establish context and first value quickly.
+    when_to_use: The first interaction needs explanation or permission.
+    when_not_to_use: The product is self-evident and can show value immediately.
+    mobile_guidance: Use progressive disclosure and a skippable path.
+    desktop_guidance: Keep orientation near the first meaningful workspace.
+    accessibility_notes: Support Dynamic Type, VoiceOver order, and visible skip actions.
+    common_failure_modes: Long introductions, premature permissions, unclear next action.
+  - name: progressive-profiling
+    problem_solved: Collect only the information needed for the next decision.
+    when_to_use: Personalization improves the next result.
+    when_not_to_use: Data can be inferred or requested later.
+    mobile_guidance: One meaningful question per screen.
+    desktop_guidance: Group related fields only when scanning remains easy.
+    accessibility_notes: Label controls and announce validation errors.
+    common_failure_modes: Asking everything before value, hidden requirements.
+  - name: loading-and-error-recovery
+    problem_solved: Preserve confidence while work is pending or fails.
+    when_to_use: Any network, AI, media, or long-running operation.
+    when_not_to_use: Never omit for a stateful operation.
+    mobile_guidance: Explain what is happening and provide retry or safe exit.
+    desktop_guidance: Keep context visible while progress updates.
+    accessibility_notes: Announce status changes and do not rely on color alone.
+    common_failure_modes: Spinner without meaning, destructive retry, blank error.
+  - name: confidence-and-uncertainty
+    problem_solved: Help users interpret recommendations that may be wrong.
+    when_to_use: AI, scoring, prediction, or incomplete data.
+    when_not_to_use: Deterministic confirmation does not need artificial doubt.
+    mobile_guidance: Put confidence beside the decision and explain limitations.
+    desktop_guidance: Allow evidence or explanation on demand.
+    accessibility_notes: Use text and semantics in addition to color.
+    common_failure_modes: False precision, unexplained scores, hidden uncertainty.

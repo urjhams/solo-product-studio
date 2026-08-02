@@ -1,0 +1,1 @@
+{"type":"object","required":["critical_path","vertical_slices","mock_boundaries","cut_triggers","definition_of_done"],"properties":{"critical_path":{"type":"string"},"vertical_slices":{"type":"array"},"mock_boundaries":{"type":"array"},"cut_triggers":{"type":"array"},"definition_of_done":{"type":"array"}}}

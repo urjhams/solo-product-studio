@@ -1,0 +1,1 @@
+{"type":"object","required":["name","version","purpose","inputs","outputs","completion_gate","handoff"],"properties":{"name":{"type":"string"},"version":{"type":"string"},"purpose":{"type":"string"},"inputs":{"type":"array"},"outputs":{"type":"array"},"completion_gate":{"type":"array"},"handoff":{"type":"object"}}}

@@ -1,0 +1,1 @@
+{"type":"object","required":["id","question","selected_option","reason","reversible"],"properties":{"id":{"type":"string","pattern":"^D-[0-9]{3,}$"},"question":{"type":"string"},"selected_option":{"type":"string"},"reason":{"type":"string"},"reversible":{"type":"boolean"},"review_condition":{"type":"string"}}}

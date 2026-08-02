@@ -1,0 +1,4 @@
+interface:
+  display_name: "Product Studio"
+  short_description: "Turn product ideas into validated build plans"
+  default_prompt: "Use product-studio to run a QA session and help me build or improve a product."

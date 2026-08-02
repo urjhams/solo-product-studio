@@ -1,0 +1,6 @@
+principles:
+  - Provide a visible focus state and logical reading/focus order.
+  - Do not rely on color, motion, or icons without text or semantics.
+  - Support Dynamic Type or equivalent text scaling.
+  - Announce asynchronous status, errors, and completed actions.
+  - Keep destructive actions reversible where possible.
