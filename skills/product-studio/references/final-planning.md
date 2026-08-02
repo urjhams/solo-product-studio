@@ -1,0 +1,14 @@
+# Final planning protocol
+
+Run this phase after an approved MVP Build Plan or Production Blueprint and before implementation or GitHub delivery.
+
+1. Read the approved source artifact, project state, repository, existing tests, design references, documentation, and prior reviews.
+2. Run the intern test: identify every material a new implementation agent needs and its exact path or an explicit unavailable note.
+3. Ask only missing questions that affect the goal, constraints, verification, or output shape.
+4. Produce `08-implementation-brief.md` with Context, Task, Constraints, Verification, Output Format, and Handoff.
+5. Convert vague quality language into concrete checks. Every verification item must say what to check, where evidence comes from, and its current status.
+6. Use explicit stopping conditions: do not finish until every required check passes or is recorded as unresolved and escalated.
+7. Send the brief to an independent reviewer. Repair the highest-impact finding and repeat until it passes. Without a fresh review context, mark `self_review_only` and block approval.
+8. At the checkpoint, show source artifacts, unresolved items, verification status, and the selected next action.
+
+The detailed MVP or Production artifact remains authoritative for scope and architecture; the Implementation Brief is the final execution contract derived from it. Keep both synchronized through project state.

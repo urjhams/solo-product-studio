@@ -145,7 +145,7 @@ When the user approves a workflow, the skill stores state in the active reposito
 └── github/
 ```
 
-State contains the selected mode, stage, constraints, capabilities, assumptions, decisions, approvals, and next gate. Artifacts are Markdown and include Product Opportunity Brief, Evidence Pack, Design Contract, MVP Build Plan, MVP Review Report, Updated Product Definition, Production Build Blueprint, and GitHub Delivery Plan.
+State contains the selected mode, stage, constraints, capabilities, assumptions, decisions, approvals, and next gate. Artifacts are Markdown and include Product Opportunity Brief, Evidence Pack, Design Contract, MVP Build Plan, MVP Review Report, Updated Product Definition, Production Build Blueprint, GitHub Delivery Plan, and the final Implementation Brief.
 
 Project state also stores the goal, protected outcome, house rules, phase done bars, review iterations, and current checkpoint. These rules keep autonomous work aligned while allowing the agent to choose the internal procedure.
 
@@ -181,6 +181,8 @@ After an approved MVP or production plan, choose:
 - Export a standalone implementation prompt
 - Create GitHub Issues
 - Save and create GitHub Issues
+
+The final Implementation Brief is the execution handoff. It names the context and materials, task, constraints, explicit `do not finish until` checks, output shape, and next checkpoint. Implementation and GitHub delivery must preserve its verification criteria.
 
 Scope expansion during a timeboxed build triggers another QA choice: include and cut something else, move to later, reject, or revisit the timebox. The decision is recorded.
 

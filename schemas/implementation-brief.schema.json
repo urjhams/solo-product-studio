@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["context", "task", "constraints", "verification", "output_format", "handoff"],
+  "properties": {
+    "context": {"type": "object", "required": ["goal", "audience", "stage", "source_artifacts", "context_sources"]},
+    "task": {"type": "object", "required": ["objective", "user_outcome", "in_scope", "first_vertical_slice"]},
+    "constraints": {"type": "object", "required": ["house_rules", "scope_exclusions", "acceptance_criteria"]},
+    "verification": {"type": "object", "required": ["do_not_finish_until", "evidence", "unresolved"], "properties": {"do_not_finish_until": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["check", "evidence", "status"]}}, "evidence": {"type": "array"}, "unresolved": {"type": "array"}}},
+    "output_format": {"type": "object", "required": ["files", "summary", "completion_evidence"]},
+    "handoff": {"type": "object", "required": ["first_action", "dependencies", "next_checkpoint"]}
+  }
+}

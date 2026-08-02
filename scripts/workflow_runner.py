@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-PHASES = ("intake", "product", "research", "design", "mvp", "review", "production")
+PHASES = ("intake", "product", "research", "design", "mvp", "review", "production", "final_planning")
 STATUSES = ("pending", "in_progress", "reviewing", "checkpointed", "approved", "blocked", "skipped")
 
 

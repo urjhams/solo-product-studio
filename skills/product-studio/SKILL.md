@@ -113,11 +113,13 @@ Use the internal capability contracts in `references/capabilities/` and template
 - Updated Product Definition
 - Production Build Blueprint
 - GitHub Delivery Plan
+- Implementation Brief
 
 Read only the relevant contract and template for the current stage. Read `references/operating-modes.md` when selecting or explaining a mode, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
 Read `references/qa-session.md` for the exact state machine and question/draft/review protocol.
 Read `references/done-bars.md` for phase completion criteria and `references/house-rules.md` for invariant selection.
 Use `scripts/workflow_runner.py` when deterministic phase transitions, review recording, or checkpoint state are needed.
+When an MVP Build Plan or Production Blueprint is approved, run the final-planning protocol in `references/final-planning.md` and generate the Implementation Brief before implementation or GitHub delivery.
 
 For UX research, ask whether to use Mobbin, public sources, generated Mobbin queries, user references, or the bundled pattern library. Never claim Mobbin was used unless the adapter succeeds.
 
@@ -127,12 +129,12 @@ If a user adds unrelated work during a timeboxed plan, pause and ask whether to 
 
 ## Completion actions
 
-After an approved MVP or production plan, offer:
+After an approved MVP or production plan and an approved Implementation Brief, offer:
 
-1. Start implementation now: inspect the repository, lock scope, implement the first vertical slice, run checks, and update state.
+1. Start implementation now: read the Implementation Brief first, inspect the repository, lock scope, implement the first vertical slice, run every verification check, and update state.
 2. Save plan only: write artifacts and state without source changes.
-3. Export standalone implementation prompt.
-4. Create GitHub Issues: inspect existing issues/milestones, show a proposal, publish only after approval.
+3. Export the Implementation Brief as a standalone implementation prompt.
+4. Create GitHub Issues from the brief: preserve acceptance and verification criteria, inspect existing issues/milestones, show a proposal, publish only after approval.
 5. Save and create GitHub Issues.
 
 ## Persistence

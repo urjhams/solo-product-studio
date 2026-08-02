@@ -10,4 +10,5 @@ Each contract defines purpose, inputs, outputs, completion gate, bundled require
 - `product-synthesizer.md`
 - `production-blueprint.md`
 - `github-delivery.md`
+- `implementation-brief.md`
 - `supporting-workflows.md`

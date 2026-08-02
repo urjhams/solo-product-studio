@@ -60,8 +60,24 @@ phases:
   mvp: {{status: pending, done_bar: [core flow executable, mocks explicit, cuts explicit, demo defined]}}
   review: {{status: pending, done_bar: [independent findings recorded, recommendation supported]}}
   production: {{status: pending, done_bar: [boundaries, migration, risks, release criteria defined]}}
+  final_planning: {{status: pending, done_bar: [context complete, constraints explicit, verification stopping conditions defined, output format defined, independent review passed]}}
 
 reviews: []
+
+final_planning:
+  status: pending
+  source_artifacts: []
+  implementation_brief: ""
+  context_sources: []
+  constraints: []
+  verification:
+    do_not_finish_until: []
+    evidence: []
+    unresolved: []
+  output_format: {{}}
+  reviewer: ""
+  review_iterations: 0
+  approval_status: pending
 
 capabilities: {{}}
 product: {{}}

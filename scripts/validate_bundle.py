@@ -15,6 +15,12 @@ REQUIRED = [
     "templates/design-contract.md", "templates/mvp-build-plan.md", "templates/mvp-review.md",
     "templates/updated-product-definition.md", "templates/production-blueprint.md",
     "templates/github-issue.md",
+    "templates/implementation-brief.md",
+    "schemas/implementation-brief.schema.json",
+    "skills/product-studio/references/final-planning.md",
+    "skills/product-studio/references/capabilities/implementation-brief.md",
+    "scripts/build_implementation_brief.py",
+    "scripts/validate_implementation_brief.py",
 ]
 
 def main() -> int:

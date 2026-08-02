@@ -44,6 +44,7 @@ class BundleTests(unittest.TestCase):
             self.assertIn("phases:", state.read_text())
             self.assertIn("approval_status: pending", state.read_text())
             self.assertIn("last_checkpoint: null", state.read_text())
+            self.assertIn("final_planning:", state.read_text())
             self.assertTrue((state.parent / "artifacts").is_dir())
 
     def test_install_and_uninstall_are_scoped(self):
@@ -142,6 +143,33 @@ class BundleTests(unittest.TestCase):
             target = publish_local(Path(directory), {"phase": "product"})
             self.assertTrue(target.exists())
             self.assertIn("local_fallback", target.read_text())
+
+    def test_final_planning_brief_requires_explicit_verification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = {
+                "context": {"goal": "Ship the core flow", "audience": "indie users", "stage": "MVP", "source_artifacts": ["04-mvp-build-plan.md"], "context_sources": ["/repo/src", "/repo/tests"], "repository": "/repo"},
+                "task": {"objective": "Implement the first vertical slice", "user_outcome": "Users complete the core flow", "in_scope": ["core flow", "error state"], "first_vertical_slice": "Create and complete an item"},
+                "constraints": {"house_rules": ["protect the core flow"], "scope_exclusions": ["billing"], "acceptance_criteria": ["core flow completes"], "technical": ["native iOS"]},
+                "verification": {"do_not_finish_until": [{"check": "Core flow test passes", "evidence": "tests/core", "status": "unresolved"}], "evidence": [], "unresolved": ["real API quota"]},
+                "output_format": {"files": ["src/core"], "completion_evidence": ["test output"]},
+                "handoff": {"first_action": "Run the core test", "dependencies": [], "next_checkpoint": "after core flow"},
+            }
+            input_path = root / "brief.json"
+            output_path = root / "08-implementation-brief.md"
+            input_path.write_text(json.dumps(payload))
+            result = self.run_script("build_implementation_brief.py", str(input_path), "--output", str(output_path))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            result = self.run_script("validate_implementation_brief.py", str(output_path))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("do not finish until", output_path.read_text())
+
+    def test_final_planning_brief_without_verification_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            brief = Path(directory) / "brief.md"
+            brief.write_text("## Context\n## Task\n## Constraints\n## Verification — do not finish until\n## Output Format\n## Handoff\n")
+            result = self.run_script("validate_implementation_brief.py", str(brief))
+            self.assertNotEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":
