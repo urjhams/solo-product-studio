@@ -11,6 +11,7 @@ if command -v jq >/dev/null 2>&1; then
 else
   fp=$(printf '%s' "$input" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 fi
+[ -n "$fp" ] || exit 0
 
 case "$fp" in
   */docs/agent/STATE.md|docs/agent/STATE.md)

@@ -29,8 +29,21 @@ if not bullets:
 lead = section[: section.find(bullets[0])]
 
 
+def rebuild(bs):
+    # The section as it will exist on disk: lead + bullets, blank line restored before the
+    # next heading (the demoted last bullet carries the original one away with it).
+    s = lead + "".join(bs)
+    if not s.endswith("\n\n"):
+        s += "\n"
+    return s
+
+
 def size(bs):
-    return len("".join(bs))
+    # Measure the EXACT span the enforcing gate measures (its awk prints every line between
+    # the headings — lead blank line included), in the same unit (bytes, wc -c; code points
+    # disagreed at the cap on multibyte ✓/→/é). Same span and same unit, or the auto-fix and
+    # the gate disagree at the boundary.
+    return len(rebuild(bs).encode("utf-8"))
 
 
 demoted = []
@@ -41,7 +54,7 @@ if not demoted:
     print(f"OK: {len(bullets)} bullets, {size(bullets)}B — nothing to demote")
     sys.exit(0)
 
-text = text[: m.start(1)] + lead + "".join(bullets) + text[m.end(1) :]
+text = text[: m.start(1)] + rebuild(bullets) + text[m.end(1) :]
 state_p.write_text(text)
 
 arch = arch_p.read_text() if arch_p.exists() else f"# Project state — archive\n\n{MARKER}\n"
