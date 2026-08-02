@@ -7,6 +7,44 @@ import json
 from pathlib import Path
 from typing import Any
 
+VALID_STATUSES = {"passed", "unresolved", "blocked", "not_applicable"}
+
+
+def validate_input(data: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    required = {"context", "task", "constraints", "verification", "output_format", "handoff"}
+    errors.extend(f"missing top-level field: {field}" for field in sorted(required - data.keys()))
+    if errors:
+        return errors
+    context = data["context"]
+    for field in ("goal", "audience", "stage", "source_artifacts", "context_sources", "repository", "existing_tests", "design_references", "documentation", "previous_versions", "prior_review_findings"):
+        if not context.get(field):
+            errors.append(f"context.{field} must be non-empty; use 'unavailable' when applicable")
+    for field in ("objective", "user_outcome", "in_scope", "first_vertical_slice"):
+        if not data["task"].get(field):
+            errors.append(f"task.{field} must be non-empty")
+    for field in ("house_rules", "scope_exclusions", "acceptance_criteria"):
+        if not data["constraints"].get(field):
+            errors.append(f"constraints.{field} must be present; use [] when none apply")
+    checks = data["verification"].get("do_not_finish_until", [])
+    if not checks:
+        errors.append("verification.do_not_finish_until must contain at least one check")
+    for index, check in enumerate(checks):
+        if isinstance(check, str):
+            continue
+        for field in ("check", "evidence", "status", "owner"):
+            if not check.get(field):
+                errors.append(f"verification.do_not_finish_until[{index}].{field} must be non-empty")
+        if check.get("status") not in VALID_STATUSES:
+            errors.append(f"verification.do_not_finish_until[{index}].status is invalid")
+    for field in ("files", "completion_evidence"):
+        if not data["output_format"].get(field):
+            errors.append(f"output_format.{field} must be non-empty")
+    for field in ("first_action", "dependencies", "next_checkpoint"):
+        if not data["handoff"].get(field):
+            errors.append(f"handoff.{field} must be non-empty")
+    return errors
+
 
 def bullets(values: Any) -> str:
     if isinstance(values, dict):
@@ -28,7 +66,8 @@ def build(data: dict[str, Any]) -> str:
     for check in checks:
         if isinstance(check, str):
             check = {"check": check, "evidence": "To be supplied", "owner": "implementation", "status": "unresolved"}
-        check_lines.append(f"- [ ] {check['check']} — Evidence: {check['evidence']} — Owner: {check.get('owner', 'implementation')} — Status: {check['status']}")
+        marker = "x" if check["status"] in {"passed", "not_applicable"} else " "
+        check_lines.append(f"- [{marker}] {check['check']} — Evidence: {check['evidence']} — Owner: {check.get('owner', 'implementation')} — Status: {check['status']}")
     return f"""# Implementation Brief
 
 ## Context
@@ -40,6 +79,11 @@ def build(data: dict[str, Any]) -> str:
 - Repository and relevant directories: {context.get('repository', 'Not recorded')}
 - Approved source artifacts: {', '.join(context['source_artifacts'])}
 - Context sources: {', '.join(context['context_sources'])}
+- Existing tests: {context['existing_tests']}
+- Design references: {context['design_references']}
+- Documentation: {context['documentation']}
+- Previous versions: {context['previous_versions']}
+- Prior review findings: {context['prior_review_findings']}
 - Prior decisions and known risks: {context.get('prior_decisions_and_risks', 'Not recorded')}
 
 ## Task
@@ -87,6 +131,9 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     data = json.loads(args.input.read_text())
+    errors = validate_input(data)
+    if errors:
+        raise SystemExit("\n".join(f"ERROR {error}" for error in errors))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(build(data))
     print(f"Wrote {args.output}")

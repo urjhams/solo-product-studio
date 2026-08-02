@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
 sys.path.insert(0, str(ROOT / "scripts"))
-from workflow_runner import begin_phase, checkpoint, new_state, record_review  # noqa: E402
+from workflow_runner import attach_final_brief, begin_phase, can_handoff, checkpoint, new_state, record_review  # noqa: E402
 from workbench_adapter import detect, publish_local  # noqa: E402
 
 
@@ -120,22 +120,44 @@ class BundleTests(unittest.TestCase):
         begin_phase(state, "product", ["wedge defined"])
         record_review(state, "product", "self", True, ["looks good"])
         checkpoint(state, "product")
-        self.assertEqual(state["approval_status"], "self_review_only")
+        self.assertEqual(state["session"]["approval_status"], "self_review_only")
         self.assertEqual(state["phases"]["product"]["status"], "blocked")
         record_review(state, "product", "independent", True, [])
         checkpoint(state, "product")
-        self.assertEqual(state["approval_status"], "approved")
+        self.assertEqual(state["session"]["approval_status"], "approved")
         self.assertEqual(state["phases"]["product"]["status"], "checkpointed")
 
     def test_workflow_runner_repair_iteration_and_next_phase(self):
         state = new_state("demo")
         begin_phase(state, "product")
         record_review(state, "product", "independent", False, ["wedge too broad"])
-        self.assertEqual(state["iteration_count"], 1)
-        self.assertEqual(state["next_action"], "repair-highest-impact-gap")
+        self.assertEqual(state["session"]["iteration_count"], 1)
+        self.assertEqual(state["session"]["next_action"], "repair-highest-impact-gap")
         record_review(state, "product", "independent", True, [])
         checkpoint(state, "product")
-        self.assertEqual(state["next_action"], "begin-research")
+        self.assertEqual(state["session"]["next_action"], "begin-research")
+
+    def test_final_planning_checkpoint_blocks_unverified_or_missing_brief(self):
+        state = new_state("demo")
+        begin_phase(state, "final_planning")
+        record_review(state, "final_planning", "independent", True, [])
+        checkpoint(state, "final_planning")
+        self.assertEqual(state["final_planning"]["approval_status"], "blocked")
+        self.assertFalse(can_handoff(state))
+        attach_final_brief(state, "08-implementation-brief.md", ["07-production-blueprint.md"], [{"check": "tests pass", "evidence": "tests/output.txt", "owner": "implementation", "status": "unresolved"}])
+        checkpoint(state, "final_planning")
+        self.assertEqual(state["session"]["next_action"], "verification-checks-unresolved")
+        self.assertFalse(can_handoff(state))
+
+    def test_final_planning_checkpoint_allows_verified_independent_handoff(self):
+        state = new_state("demo")
+        begin_phase(state, "final_planning")
+        attach_final_brief(state, "08-implementation-brief.md", ["04-mvp-build-plan.md"], [{"check": "tests pass", "evidence": "tests/output.txt", "owner": "implementation", "status": "passed"}])
+        record_review(state, "final_planning", "independent", True, [])
+        checkpoint(state, "final_planning")
+        self.assertEqual(state["final_planning"]["approval_status"], "approved")
+        self.assertTrue(can_handoff(state))
+        self.assertEqual(state["session"]["next_action"], "offer-completion-actions")
 
     def test_workbench_detection_and_local_fallback(self):
         self.assertEqual(detect()["status"], "unavailable")
@@ -148,12 +170,12 @@ class BundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             payload = {
-                "context": {"goal": "Ship the core flow", "audience": "indie users", "stage": "MVP", "source_artifacts": ["04-mvp-build-plan.md"], "context_sources": ["/repo/src", "/repo/tests"], "repository": "/repo"},
+                "context": {"goal": "Ship the core flow", "audience": "indie users", "stage": "MVP", "source_artifacts": ["04-mvp-build-plan.md"], "context_sources": ["/repo/src", "/repo/tests"], "repository": "/repo", "existing_tests": "/repo/tests", "design_references": "unavailable", "documentation": "/repo/docs", "previous_versions": "unavailable", "prior_review_findings": "unavailable"},
                 "task": {"objective": "Implement the first vertical slice", "user_outcome": "Users complete the core flow", "in_scope": ["core flow", "error state"], "first_vertical_slice": "Create and complete an item"},
                 "constraints": {"house_rules": ["protect the core flow"], "scope_exclusions": ["billing"], "acceptance_criteria": ["core flow completes"], "technical": ["native iOS"]},
-                "verification": {"do_not_finish_until": [{"check": "Core flow test passes", "evidence": "tests/core", "status": "unresolved"}], "evidence": [], "unresolved": ["real API quota"]},
+                "verification": {"do_not_finish_until": [{"check": "Core flow test passes", "evidence": "tests/core", "status": "unresolved", "owner": "implementation"}], "evidence": [], "unresolved": ["real API quota"]},
                 "output_format": {"files": ["src/core"], "completion_evidence": ["test output"]},
-                "handoff": {"first_action": "Run the core test", "dependencies": [], "next_checkpoint": "after core flow"},
+                "handoff": {"first_action": "Run the core test", "dependencies": ["repository"], "next_checkpoint": "after core flow"},
             }
             input_path = root / "brief.json"
             output_path = root / "08-implementation-brief.md"
