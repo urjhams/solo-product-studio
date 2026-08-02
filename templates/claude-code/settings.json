@@ -55,6 +55,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/state-autocompact.sh\"",
+            "timeout": 10,
+            "statusMessage": "Compacting STATE.md if over cap..."
+          }
+        ]
+      }
     ]
   }
 }

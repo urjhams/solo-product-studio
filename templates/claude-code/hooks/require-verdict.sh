@@ -38,7 +38,7 @@ junk=$(printf '%s\n' "$changed" | grep -E '\.(bak|orig|rej)$|~$' || true)
 # STATE.md cap — bytes of the Current-focus section, not bullet count.
 if [ -f "$STATE_FILE" ]; then
   bytes=$(awk '/^## Current focus/{f=1;next} /^## /{f=0} f' "$STATE_FILE" | wc -c | tr -d ' ')
-  [ "$bytes" -gt "$STATE_SECTION_CAP" ] && block "STATE.md Current-focus is ${bytes}B > ${STATE_SECTION_CAP}B cap — fold oldest bullets into STATE-archive.md first"
+  [ "$bytes" -gt "$STATE_SECTION_CAP" ] && block "STATE.md Current-focus is ${bytes}B > ${STATE_SECTION_CAP}B cap — run python3 scripts/agent/compact-state.py, commit both files, retry"
 fi
 
 # Lane split: docs/tooling-only diffs skip the evaluator gate.

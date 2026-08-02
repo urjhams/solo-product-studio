@@ -46,6 +46,7 @@ core/docs/agent/RUNBOOKS.md|docs/agent/RUNBOOKS.md
 core/docs/agent/STATE.md|docs/agent/STATE.md
 core/docs/agent/STATE-archive.md|docs/agent/STATE-archive.md
 core/docs/agent/GOTCHAS.md|docs/agent/GOTCHAS.md
+core/scripts/agent/compact-state.py|scripts/agent/compact-state.py
 EOF
       ;;
     agents) cat <<'EOF'
@@ -57,6 +58,7 @@ EOF
 claude-code/settings.json|.claude/settings.json
 claude-code/hooks/session-card.sh|.claude/hooks/session-card.sh
 claude-code/hooks/require-verdict.sh|.claude/hooks/require-verdict.sh
+claude-code/hooks/state-autocompact.sh|.claude/hooks/state-autocompact.sh
 EOF
       ;;
     ci) cat <<'EOF'
@@ -90,7 +92,7 @@ install() {
       fi
       mkdir -p "$(dirname "$to")"
       cp "$from" "$to"
-      case "$to" in *.sh) chmod +x "$to" ;; esac
+      case "$to" in *.sh|*.py) chmod +x "$to" ;; esac
       grep -v "	$dst\$" "$DEST/$MANIFEST" > "$DEST/$MANIFEST.tmp" || true
       printf '%s\t%s\n' "$(sha "$to")" "$dst" >> "$DEST/$MANIFEST.tmp"
       mv "$DEST/$MANIFEST.tmp" "$DEST/$MANIFEST"
@@ -134,13 +136,26 @@ check() {
   local tmp; tmp=$(mktemp -d)
   echo "self-check in $tmp"
   DEST="$tmp" MODULES="core,agents,claude-code,ci" FORCE=0 install >/dev/null
-  local expected="AGENTS.md CLAUDE.md docs/agent/CARD.md docs/agent/RUNBOOKS.md docs/agent/STATE.md docs/agent/STATE-archive.md docs/agent/GOTCHAS.md .claude/agents/task-evaluator.md .claude/agents/_platform-reviewer.template.md .claude/settings.json .claude/hooks/session-card.sh .claude/hooks/require-verdict.sh .github/workflows/ci.yml"
+  local expected="AGENTS.md CLAUDE.md docs/agent/CARD.md docs/agent/RUNBOOKS.md docs/agent/STATE.md docs/agent/STATE-archive.md docs/agent/GOTCHAS.md scripts/agent/compact-state.py .claude/agents/task-evaluator.md .claude/agents/_platform-reviewer.template.md .claude/settings.json .claude/hooks/session-card.sh .claude/hooks/require-verdict.sh .claude/hooks/state-autocompact.sh .github/workflows/ci.yml"
   local fail=0
   for f in $expected; do
     [ -f "$tmp/$f" ] || { echo "MISSING: $f"; fail=1; }
   done
   [ -x "$tmp/.claude/hooks/session-card.sh" ] || { echo "NOT EXECUTABLE: session-card.sh"; fail=1; }
   bash -n "$tmp/.claude/hooks/require-verdict.sh" || { echo "SYNTAX ERROR: require-verdict.sh"; fail=1; }
+  # compaction: 10 over-length bullets -> caps enforced, demoted bullets land in archive
+  if command -v python3 >/dev/null 2>&1; then
+    for i in 10 9 8 7 6 5 4 3 2 1; do
+      printf -- '- 2026-01-%02d: `b%d` — %s.\n' "$i" "$i" "$(printf 'x%.0s' $(seq 1 400))"
+    done > "$tmp/bullets.txt"
+    awk '/^## Current focus/{print; while((getline l < "'"$tmp"'/bullets.txt") > 0) print l; next} !/^- /' "$tmp/docs/agent/STATE.md" > "$tmp/docs/agent/STATE.tmp" && mv "$tmp/docs/agent/STATE.tmp" "$tmp/docs/agent/STATE.md"
+    (cd "$tmp" && python3 scripts/agent/compact-state.py >/dev/null)
+    local nb; nb=$(grep -c '^- ' "$tmp/docs/agent/STATE.md" || true)
+    local sb; sb=$(awk '/^## Current focus/{f=1;next} /^## /{f=0} f' "$tmp/docs/agent/STATE.md" | wc -c | tr -d ' ')
+    [ "$nb" -le 8 ] && [ "$sb" -le 3000 ] || { echo "COMPACT FAILED: $nb bullets, ${sb}B after run"; fail=1; }
+    grep -q 'b1' "$tmp/docs/agent/STATE-archive.md" || { echo "COMPACT FAILED: oldest bullet not archived"; fail=1; }
+    grep -q 'b10' "$tmp/docs/agent/STATE.md" || { echo "COMPACT FAILED: newest bullet lost"; fail=1; }
+  fi
   # idempotency: second run writes nothing
   local second; second=$(DEST="$tmp" MODULES="core" FORCE=0 install | grep -c '^wrote:' || true)
   [ "$second" = 0 ] || { echo "NOT IDEMPOTENT: second run wrote $second files"; fail=1; }
