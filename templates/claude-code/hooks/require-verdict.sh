@@ -14,7 +14,13 @@ STATE_FILE="docs/agent/STATE.md"
 STATE_SECTION_CAP=3000   # bytes for "## Current focus" — measure the thing you care about
 
 input=$(cat)
-command=$(printf '%s' "$input" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p')
+if command -v jq >/dev/null 2>&1; then
+  command=$(printf '%s' "$input" | jq -r '.tool_input.command // empty')
+else
+  # Fallback: stop at the first unescaped quote so a trailing "description" field
+  # can't leak into the captured command and false-trigger the gate.
+  command=$(printf '%s' "$input" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+fi
 
 # Match `gh pr create` as a command target (start of string or after a shell operator),
 # never as a prose mention inside a commit message or comment body.

@@ -68,10 +68,15 @@ EOF
 }
 
 install() {
-  mkdir -p "$DEST/$MANIFEST_DIR"
-  touch "$DEST/$MANIFEST"
   local installed=0 skipped=0
   IFS=',' read -ra mods <<< "$MODULES"
+  # Validate up front: an exit inside `< <(map_module …)` process substitution
+  # doesn't propagate, so a typo'd module would otherwise silently no-op.
+  for mod in "${mods[@]}"; do
+    case "$mod" in core|agents|claude-code|ci) ;; *) echo "unknown module: $mod" >&2; exit 1 ;; esac
+  done
+  mkdir -p "$DEST/$MANIFEST_DIR"
+  touch "$DEST/$MANIFEST"
   for mod in "${mods[@]}"; do
     while IFS='|' read -r src dst; do
       [ -n "$src" ] || continue
