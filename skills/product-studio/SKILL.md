@@ -5,7 +5,7 @@ description: Run an interactive product QA session that turns a product idea, ex
 
 # Solo Product Studio
 
-Act as the user's product QA partner and implementation planner. Begin with a short adaptive interview. Do not generate a large plan before understanding the user's product, stage, constraints, and desired outcome.
+Act as the user's product QA partner and implementation planner. Begin with a short adaptive interview, establish a goal and house rules, then run the confirmed phase with disciplined autonomy. Do not generate a large plan before understanding the user's product, stage, constraints, and desired outcome.
 
 The only public slash entry is `/product-studio`. If the host has no slash-command surface, accept `Use product-studio to help me build a product.` instead.
 
@@ -16,7 +16,24 @@ The only public slash entry is `/product-studio`. If the host has no slash-comma
 3. Extract answers from the user's free-form response before asking anything else.
 4. Ask one question at a time. Use 3–7 high-value questions, with numbered choices for categorical decisions and an `Other` path for free text.
 5. Detect both the product stage and operating mode. They are separate: stage describes where the work is; mode describes how the work should be optimized.
-6. Show an intake summary and wait for explicit confirmation before research or planning.
+6. Show an intake summary, goal, house rules, recommended path, and phase done bars; wait for explicit confirmation before research or planning.
+7. Default to phase checkpoints, not approval after every artifact. Return to the user at intake, consequential transitions, phase completion, external publication, or when blocked.
+
+## Goal and house rules
+
+Treat the user's desired outcome as the goal and choose the procedure yourself. Do not make the user select internal capabilities or dictate implementation steps unless a decision materially changes the product.
+
+Before starting the first phase, establish and persist:
+
+- goal and protected outcome
+- target user and product promise
+- selected mode and path
+- platform, timebox, budget, and team constraints
+- evidence and privacy rules
+- non-negotiables and scope exclusions
+- approval boundaries for external or irreversible actions
+
+State these as a concise working agreement and ask the user to confirm or correct it.
 
 ## Mode recommendation
 
@@ -48,9 +65,9 @@ Route only the relevant workflow:
 
 Do not force the complete lifecycle. A Hackathon path may stop at an MVP demo plan; an Indie or SaaS path may continue to payment or workflow validation; a Startup path may continue to retention and distribution; Production mode may begin from an already validated definition.
 
-## QA gates
+## QA gates and phase checkpoints
 
-Every workflow is a QA session:
+Every workflow is a QA session, but do not interrupt after every artifact:
 
 1. Read project state and existing artifacts.
 2. Ask only unresolved questions needed for the current artifact.
@@ -58,9 +75,11 @@ Every workflow is a QA session:
 4. Record assumptions and decisions with IDs.
 5. Draft the artifact.
 6. Show uncertainty, rejected alternatives, and risks.
-7. Ask for approval or correction.
-8. Run the artifact completion gate.
-9. Continue only after the gate passes.
+7. Run the phase done bar and an independent review when available.
+8. Repair the highest-impact gap and repeat the review loop until the bar passes or the agent is blocked.
+9. Return to the user at the phase checkpoint with the result, remaining uncertainty, and next decision.
+
+Ask the user immediately only when a decision is consequential, irreversible, externally costly, blocked by missing information, or conflicts with the protected outcome.
 
 Do not treat document existence as approval. Never fabricate evidence. If research is unavailable, produce an assumption map and research plan with low/unknown confidence.
 
@@ -78,9 +97,9 @@ Use the smallest applicable question set. Record each answer before asking the n
 
 **MVP questions:** critical path, mock boundary, essential real integration, persistence, time allocation, cut trigger, test risk, and definition of done.
 
-After each answer update the relevant state section. Use `A-###` for assumptions and `D-###` for decisions. A workflow may transition only through `intake → proposed → confirmed → drafting → review → approved` (or `paused`/`rejected`). Store the current stage, current gate, approval status, and next action so a resumed session continues exactly where it stopped.
+After each answer update the relevant state section. Use `A-###` for assumptions and `D-###` for decisions. A workflow may transition only through `intake → proposed → confirmed → drafting → review → approved` (or `paused`/`rejected`). Store the current phase, gate, done bar, approval status, next action, and iteration count so a resumed session continues exactly where it stopped.
 
-For every artifact, read the matching template, fill all required sections, show unresolved fields explicitly, ask for review, then check the matching schema/gate. If the gate fails, ask targeted correction questions instead of advancing.
+For every artifact, read the matching template, fill all required sections, show unresolved fields explicitly, and evaluate it against the phase done bar/completion gate. Do not ask for approval solely because an artifact exists. If the bar fails, repair the highest-impact gap and reevaluate.
 
 ## Required outputs
 
@@ -97,6 +116,7 @@ Use the internal capability contracts in `references/capabilities/` and template
 
 Read only the relevant contract and template for the current stage. Read `references/operating-modes.md` when selecting or explaining a mode, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
 Read `references/qa-session.md` for the exact state machine and question/draft/review protocol.
+Read `references/done-bars.md` for phase completion criteria and `references/house-rules.md` for invariant selection.
 
 For UX research, ask whether to use Mobbin, public sources, generated Mobbin queries, user references, or the bundled pattern library. Never claim Mobbin was used unless the adapter succeeds.
 
@@ -116,7 +136,7 @@ After an approved MVP or production plan, offer:
 
 ## Persistence
 
-Maintain one canonical state file at `.product-studio/project.yaml` and Markdown artifacts under `.product-studio/artifacts/`. Update only the relevant sections. Store capability availability, mode, stage, questions answered, assumptions, decisions, approvals, and next gate. Use `scripts/init_project.py` or `scripts/discover_capabilities.py` when deterministic local setup is useful.
+Maintain one canonical state file at `.product-studio/project.yaml` and Markdown artifacts under `.product-studio/artifacts/`. Update only the relevant sections. Store capability availability, goal, house rules, mode, stage, path, questions answered, assumptions, decisions, phase status, done bars, review iterations, approvals, and next gate. Use `scripts/init_project.py` or `scripts/discover_capabilities.py` when deterministic local setup is useful.
 
 ## Host portability
 

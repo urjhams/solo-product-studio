@@ -36,6 +36,9 @@ class BundleTests(unittest.TestCase):
             state = Path(directory) / ".product-studio" / "project.yaml"
             self.assertTrue(state.exists())
             self.assertIn("mode: hackathon", state.read_text())
+            self.assertIn("house_rules:", state.read_text())
+            self.assertIn("current_phase: intake", state.read_text())
+            self.assertIn("phases:", state.read_text())
             self.assertTrue((state.parent / "artifacts").is_dir())
 
     def test_install_and_uninstall_are_scoped(self):
@@ -88,6 +91,23 @@ class BundleTests(unittest.TestCase):
         for term in required_terms:
             with self.subTest(term=term):
                 self.assertIn(term, skill + docs)
+
+    def test_fluid_workflow_rules_are_explicit(self):
+        skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
+        protocol = (ROOT / "skills/product-studio/references/qa-session.md").read_text()
+        for phrase in [
+            "phase checkpoints", "house rules", "done bar", "highest-impact gap",
+            "independent review", "consequential", "protected outcome",
+        ]:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, (skill + protocol).lower())
+
+    def test_workbench_is_optional_with_local_fallback(self):
+        adapter = ROOT / "skills/product-studio/adapters/workbench/README.md"
+        self.assertTrue(adapter.exists())
+        text = adapter.read_text().lower()
+        self.assertIn("optional", text)
+        self.assertIn("local", text)
 
 
 if __name__ == "__main__":

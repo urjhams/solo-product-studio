@@ -29,6 +29,35 @@ def main() -> int:
   mode: {args.mode}
   created_at: {now}
   updated_at: {now}
+  goal: ""
+  protected_outcome: ""
+  path: ""
+
+house_rules:
+  constraints: []
+  non_negotiables: []
+  scope_exclusions: []
+  evidence_policy: "cite sources; label inference and unknowns"
+  approval_boundaries: ["external publication", "irreversible decisions"]
+
+session:
+  status: intake
+  current_phase: intake
+  current_gate: goal-and-house-rules
+  next_action: ask-intake-question
+  questions: []
+  iteration_count: 0
+
+phases:
+  intake: {{status: in_progress, done_bar: [goal defined, house rules confirmed]}}
+  product: {{status: pending, done_bar: [target user defined, wedge narrow, assumptions recorded]}}
+  research: {{status: pending, done_bar: [evidence cited or research plan created, uncertainty labeled]}}
+  design: {{status: pending, done_bar: [promise, hero moment, flow, scope, three principles defined]}}
+  mvp: {{status: pending, done_bar: [core flow executable, mocks explicit, cuts explicit, demo defined]}}
+  review: {{status: pending, done_bar: [independent findings recorded, recommendation supported]}}
+  production: {{status: pending, done_bar: [boundaries, migration, risks, release criteria defined]}}
+
+reviews: []
 
 capabilities: {{}}
 product: {{}}

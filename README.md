@@ -26,7 +26,9 @@ The first response is a QA session:
 4. It detects your current stage and recommends an operating mode.
 5. It explains the proposed path and waits for confirmation.
 6. It researches and plans only the confirmed path.
-7. It pauses at every artifact gate for review.
+7. It evaluates a done bar, repairs the largest gap, and pauses at meaningful phase checkpoints.
+
+The default interaction policy is now phase-oriented: after you confirm the goal and working rules, Product Studio runs the phase, evaluates its done bar, repairs the largest gap, and returns at a meaningful checkpoint. It does not interrupt after every intermediate artifact. Ask for strict artifact-by-artifact approval when you want tighter control.
 
 Questions use numbered choices for categorical decisions and always allow a custom answer.
 
@@ -144,6 +146,8 @@ When the user approves a workflow, the skill stores state in the active reposito
 ```
 
 State contains the selected mode, stage, constraints, capabilities, assumptions, decisions, approvals, and next gate. Artifacts are Markdown and include Product Opportunity Brief, Evidence Pack, Design Contract, MVP Build Plan, MVP Review Report, Updated Product Definition, Production Build Blueprint, and GitHub Delivery Plan.
+
+Project state also stores the goal, protected outcome, house rules, phase done bars, review iterations, and current checkpoint. These rules keep autonomous work aligned while allowing the agent to choose the internal procedure.
 
 Initialize state manually when useful:
 
