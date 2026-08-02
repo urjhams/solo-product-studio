@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "skills" / "product-studio"
+RESOURCE_DIRS = ("schemas", "templates", "pattern-library", "scripts")
 TARGETS = {
     "codex": Path.home() / ".codex" / "skills",
     "claude-code": Path.home() / ".claude" / "skills",
@@ -37,6 +38,10 @@ def main() -> int:
         installed.symlink_to(SOURCE, target_is_directory=True)
     else:
         shutil.copytree(SOURCE, installed)
+    # SKILL.md refers to these resources by relative path. Package them beside
+    # the skill so project-local and global installs are self-contained.
+    for resource in RESOURCE_DIRS:
+        shutil.copytree(ROOT / resource, installed / resource)
     print(f"Installed {installed}")
     return 0
 

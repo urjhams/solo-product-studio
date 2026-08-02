@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import re
+import json
 from pathlib import Path
 
 def main() -> int:
@@ -22,8 +23,8 @@ def main() -> int:
     for folder in ("artifacts", "research", "github"):
         (root / folder).mkdir(parents=True, exist_ok=True)
     state.write_text(f"""project:
-  id: {project_id}
-  name: {args.name}
+  id: {json.dumps(project_id)}
+  name: {json.dumps(args.name)}
   stage: {args.stage}
   mode: {args.mode}
   created_at: {now}

@@ -44,6 +44,8 @@ class BundleTests(unittest.TestCase):
             result = self.run_script("install.py", "--target", "agents", "--destination", str(destination))
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue((destination / "product-studio" / "SKILL.md").exists())
+            self.assertTrue((destination / "product-studio" / "templates" / "mvp-build-plan.md").exists())
+            self.assertTrue((destination / "product-studio" / "schemas" / "project.schema.json").exists())
             result = self.run_script("install.py", "--target", "agents", "--destination", str(destination), "--uninstall")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse((destination / "product-studio").exists())
@@ -52,12 +54,40 @@ class BundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             issues = root / "issues.json"
-            issues.write_text(json.dumps([{"title": "Build core flow", "body": "Acceptance criteria"}]))
+            issues.write_text(json.dumps([{"title": "Build core flow", "body": "Acceptance criteria", "dependencies": ["GH-000"], "labels": ["mvp"]}]))
             output = root / "github"
             result = self.run_script("export_github_plan.py", str(issues), "--output", str(output))
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("local_only", (output / "issue-plan.yaml").read_text())
+            exported = json.loads((output / "issue-plan.yaml").read_text())
+            self.assertEqual(exported["publish_status"], "local_only")
+            self.assertEqual(exported["issues"][0]["dependencies"], ["GH-000"])
             self.assertIn("Build core flow", (output / "issue-plan.md").read_text())
+
+    def test_special_characters_are_safe_in_project_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.run_script("init_project.py", "A: #1 \"idea\"", "--directory", directory)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            state = (Path(directory) / ".product-studio" / "project.yaml").read_text()
+            self.assertIn('name: "A: #1 \\"idea\\""', state)
+
+    def test_capabilities_can_be_persisted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / ".product-studio" / "project.yaml"
+            result = self.run_script("discover_capabilities.py", "--project", str(state))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("capability_registry_json", state.read_text())
+
+    def test_original_lifecycle_scenarios_have_explicit_coverage(self):
+        skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
+        docs = "\n".join(path.read_text() for path in (ROOT / "docs/examples").glob("*.md"))
+        required_terms = [
+            "Hackathon", "Indie App", "SaaS", "Startup", "Production", "Custom",
+            "Mobbin", "research plan", "GitHub Issues", "Resume", "Scope expansion",
+            "MVP Auditor", "Product Synthesizer", "completion gate", "explicit confirmation",
+        ]
+        for term in required_terms:
+            with self.subTest(term=term):
+                self.assertIn(term, skill + docs)
 
 
 if __name__ == "__main__":

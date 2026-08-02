@@ -64,9 +64,27 @@ Every workflow is a QA session:
 
 Do not treat document existence as approval. Never fabricate evidence. If research is unavailable, produce an assumption map and research plan with low/unknown confidence.
 
+## Operational question bank and state transitions
+
+Use the smallest applicable question set. Record each answer before asking the next question.
+
+**Universal intake:** what to build/improve, target user, desired outcome, current stage, platform, timebox, existing repository/research/design, desired completion action.
+
+**Mode questions:** solo or team, consumer or business buyer, recurring workflow or one-off use, monetization intent, demo versus learning versus scale goal, and operational constraints.
+
+**Research questions:** which assumptions matter most, what evidence already exists, which competitors or alternatives matter, and whether external research is permitted/available.
+
+**Design questions:** product promise, hero moment, primary flow, visual feeling, platform conventions, accessibility needs, and what must be cut.
+
+**MVP questions:** critical path, mock boundary, essential real integration, persistence, time allocation, cut trigger, test risk, and definition of done.
+
+After each answer update the relevant state section. Use `A-###` for assumptions and `D-###` for decisions. A workflow may transition only through `intake → proposed → confirmed → drafting → review → approved` (or `paused`/`rejected`). Store the current stage, current gate, approval status, and next action so a resumed session continues exactly where it stopped.
+
+For every artifact, read the matching template, fill all required sections, show unresolved fields explicitly, ask for review, then check the matching schema/gate. If the gate fails, ask targeted correction questions instead of advancing.
+
 ## Required outputs
 
-Use the internal capability contracts in `references/capabilities/` and templates in `templates/` to produce:
+Use the internal capability contracts in `references/capabilities/` and templates in `templates/` to produce. In an installed bundle these directories are packaged beside `SKILL.md`; in a repository checkout they are also available at the repository root.
 
 - Product Opportunity Brief
 - Evidence Pack
@@ -78,6 +96,13 @@ Use the internal capability contracts in `references/capabilities/` and template
 - GitHub Delivery Plan
 
 Read only the relevant contract and template for the current stage. Read `references/operating-modes.md` when selecting or explaining a mode, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
+Read `references/qa-session.md` for the exact state machine and question/draft/review protocol.
+
+For UX research, ask whether to use Mobbin, public sources, generated Mobbin queries, user references, or the bundled pattern library. Never claim Mobbin was used unless the adapter succeeds.
+
+## Scope expansion
+
+If a user adds unrelated work during a timeboxed plan, pause and ask whether to include it while cutting another item, move it to later, reject it, or revisit the timebox. Record the decision and protect the confirmed core flow.
 
 ## Completion actions
 
