@@ -37,5 +37,6 @@ opening a PR or delegating → `docs/agent/RUNBOOKS.md`.
 **Default: do not spawn — work inline.** Spawn only when the prompt starts with `__` or the user
 names an agent. Prefer the **lowest** model tier the brief fits; never spawn at or above your own
 tier. Read-only fan-out runs at the cheapest tier available; **writers run one at a time**
-(parallelism is for read-only work only — a parallel writer pays a cold uncached prefix).
-Spawn foreground; brief each subagent self-contained. Full playbook: `RUNBOOKS.md#agent-delegation`.
+(parallelism is for read-only work only — concurrent writers clobber each other's edits).
+Spawn foreground; brief each subagent self-contained. Full playbook — including the cache rules
+that decide what a wave actually costs: `RUNBOOKS.md#agent-delegation`.

@@ -67,13 +67,13 @@ Without an opt-in you may add one line noting a task looks parallelizable — bu
 **Spawn trigger — prompt starts with `__`** (or the user names an agent). Then:
 
 - **Decompose into sequential waves** — atomic tasks, explicit done-criteria, non-overlapping
-  file sets. Read-only tasks in a wave batch in one message and run in parallel; **writer tasks
-  run one per wave.** Orchestrator integrates between waves (build/test/commit); the
+  file sets. Read-only tasks in a wave batch in one message and run in parallel (with the one
+  warm-up exception under *Cache discipline* below); **writer tasks run one per wave.** Orchestrator integrates between waves (build/test/commit); the
   `task-evaluator` gate runs once, after the last wave.
-- **Writers always run ONE AT A TIME.** A parallel writer starts a cold context and pays a full
-  uncached prefix while the orchestrator's context is warm — sequential writers reuse the cache,
-  and under a quota cap that beats wall-clock. No file-overlap judgement at spawn time: writers
-  serialize regardless.
+- **Writers always run ONE AT A TIME** — two writers in flight can clobber each other's edits, and
+  no file-overlap judgement at spawn time is trustworthy enough to permit it. Writers serialize
+  regardless. (Sequential same-type spawns also reuse that agent type's cached prefix — a bonus,
+  not the reason.)
 - **Spawn foreground**; brief each subagent self-contained (file paths, relevant rules, expected
   output format, response-length cap). **Never point a subagent at `STATE.md`** — brief it at
   `GOTCHAS.md` instead.
@@ -95,6 +95,26 @@ Without an opt-in you may add one line noting a task looks parallelizable — bu
   enumeration, wave planning stay with the orchestrator.
 - Exception: reviewers and `task-evaluator` keep their own tier even under a cheaper
   orchestrator — their value is independent context, not a cost downgrade.
+
+### Cache discipline — where subagent quota actually goes
+
+Prompt caching is a **prefix match**: reuse happens only where two requests share identical
+leading bytes. A subagent's prefix is its own system prompt + tools + agent definition, which is
+*not* the orchestrator's prefix.
+
+- **A subagent never inherits the orchestrator's cache**, sequential or parallel. The only reuse
+  available is between spawns of the **same agent type**, over their shared definition.
+- **A cache entry is readable only after the first spawn's response starts streaming.** N spawns
+  of one type fired in a single message therefore all miss and each pays a full uncached prefix.
+  At **N ≥ 3** read-only spawns of the same type: send one, then batch the rest — one write plus
+  N−1 cheap reads. At N ≤ 2, just batch; the round-trip costs more than it saves.
+- **Fire a wave's spawns back-to-back.** Cache entries expire in minutes; an orchestrator detour
+  between spawns of the same type forfeits the reuse.
+- **Keep `.claude/agents/*.md` byte-stable.** Never write dates, run IDs, `STATE.md` contents, or
+  any per-session state into an agent definition — one changed byte invalidates that agent type's
+  entire cached prefix. Edit agent definitions as a deliberate change, not as routine bookkeeping.
+- **Order every brief stable-first:** shared rules, output format, and length cap up top;
+  task-specific paths and done-criteria last. Only the leading shared portion can be reused.
 
 ---
 

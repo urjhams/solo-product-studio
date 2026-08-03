@@ -40,7 +40,9 @@ stub. The scaffold script does the copying; you do the judgment.
 5. **Instantiate reviewers** (agents module): copy
    `.claude/agents/_platform-reviewer.template.md` once per component to
    `.claude/agents/<area>-reviewer.md`, filling `{{AREA}}`, `{{AREA_STACK}}`, `{{AREA_PATHS}}`,
-   `{{AREA_STANDARDS_DOC}}`. Delete the `_platform-reviewer.template.md` copy after.
+   `{{AREA_STANDARDS_DOC}}`. Delete the `_platform-reviewer.template.md` copy after. Fill these
+   with **static** content only — no dates, run IDs, or current-state prose: an agent definition
+   is the cached prefix every spawn of that type reuses, and one changed byte invalidates it.
 
 6. **Verify**: `grep -rn '{{[A-Z_]*}}'` over the generated files returns nothing;
    `bash -n .claude/hooks/*.sh` passes. Report the generated file list, the collisions skipped,
