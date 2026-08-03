@@ -1,3 +1,9 @@
 __pycache__/
 *.py[cod]
 .product-studio/
+
+# Resource dirs symlinked into the skill bundle by install.py (--symlink installs)
+skills/product-studio/templates
+skills/product-studio/schemas
+skills/product-studio/pattern-library
+skills/product-studio/scripts

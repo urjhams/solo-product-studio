@@ -39,9 +39,17 @@ def main() -> int:
     else:
         shutil.copytree(SOURCE, installed)
     # SKILL.md refers to these resources by relative path. Package them beside
-    # the skill so project-local and global installs are self-contained.
+    # the skill so project-local and global installs are self-contained. A
+    # symlink install links them instead of copying, so they cannot drift from
+    # the repository root.
     for resource in RESOURCE_DIRS:
-        shutil.copytree(ROOT / resource, installed / resource)
+        target = SOURCE / resource if args.symlink else installed / resource
+        if target.exists() or target.is_symlink():
+            continue
+        if args.symlink:
+            target.symlink_to(Path("..") / ".." / resource, target_is_directory=True)
+        else:
+            shutil.copytree(ROOT / resource, target)
     print(f"Installed {installed}")
     return 0
 
