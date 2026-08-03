@@ -6,6 +6,7 @@
 - Target user and audience:
 - Current stage:
 - Operating mode and path:
+- Mode revisit trigger:
 - Repository and relevant directories:
 - Approved source artifacts:
 - Existing tests, design references, and documentation:

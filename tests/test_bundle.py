@@ -24,7 +24,7 @@ class BundleTests(unittest.TestCase):
 
     def test_skill_starts_with_qa_and_mode_routing(self):
         skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
-        for phrase in ["What do you want to build or improve?", "Hackathon", "Indie App", "SaaS", "Startup", "wait for explicit confirmation"]:
+        for phrase in ["What do you want to build or improve?", "Hackathon", "Indie App", "SaaS", "Startup", "wait for explicit confirmation", "Expo", "Flutter", "SwiftUI", "Next.js", "market probe", "Mode revisit"]:
             self.assertIn(phrase, skill)
 
     def test_schemas_are_valid_json(self):

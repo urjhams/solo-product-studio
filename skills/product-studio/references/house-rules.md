@@ -4,7 +4,7 @@ Create a compact working agreement before the first autonomous phase. Include on
 
 - goal and protected outcome
 - target user and product promise
-- mode, path, platform, timebox, budget, and team
+- mode, path, platform surface, stack track, timebox, budget, and team
 - evidence, privacy, and security requirements
 - non-negotiables and explicit scope exclusions
 - approval boundaries for external publication or irreversible decisions

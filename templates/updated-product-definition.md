@@ -15,4 +15,5 @@
 - Competitive position:
 - Success metrics:
 - Next experiment:
+- Operating mode verdict (keep / switch, with signals):
 - Production-readiness verdict:

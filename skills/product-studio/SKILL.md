@@ -28,7 +28,7 @@ Before starting the first phase, establish and persist:
 - goal and protected outcome
 - target user and product promise
 - selected mode and path
-- platform, timebox, budget, and team constraints
+- platform surface, stack track, timebox, budget, and team constraints
 - evidence and privacy rules
 - non-negotiables and scope exclusions
 - approval boundaries for external or irreversible actions
@@ -37,9 +37,11 @@ State these as a concise working agreement and ask the user to confirm or correc
 
 ## Mode recommendation
 
-Recommend one mode from the idea and constraints, explain why, and let the user override it:
+Recommend one mode from the idea and constraints, explain why, and let the user override it.
 
-- **Hackathon**: 2–8 hours, demo/showcase, one core flow, memorable wow moment, mock-first, one major integration maximum.
+When the choice is between Indie App and Startup, or monetization intent is unknown, run the bounded market probe in `references/market-probe.md` first. Present the recommendation with confidence, the evidence behind it, and what would change it. Do not guess this fork from the user's own framing alone.
+
+- **Hackathon**: 2–8 hours, demo/showcase, one core flow, memorable wow moment, mock-first, one major integration maximum, fastest toolchain to a running app.
 - **Indie App**: solo/small team, narrow paid wedge, low maintenance, one platform first, payment and margin validation.
 - **SaaS**: recurring business workflow, buyer/user distinction, measurable ROI, roles, onboarding, billing, and reliability deferred until the core workflow is proven.
 - **Startup**: beachhead segment, retention, distribution, unit economics, defensibility, and expansion path; never use market size as proof.
@@ -48,12 +50,24 @@ Recommend one mode from the idea and constraints, explain why, and let the user 
 
 Present the recommended path and ask the user to accept, change mode, customize it, or answer more questions. Persist the selection.
 
+## Platform decision
+
+Decide the platform before the Design Contract, never as a passive slot. Pick a surface — mobile app, web app, or both with one shipping first — then a track inside it:
+
+- Mobile: **Expo** by default for a product MVP, startup app, CRUD/workflow app, or a fast iOS-and-Android launch; **Flutter** when a bespoke shared visual identity is the hero moment; **native SwiftUI** when the product is iOS-first, needs deep Apple integration, demanding performance, or a premium platform-specific experience.
+- Web: **Next.js with hosted Postgres and hosted auth** for a SaaS or workflow MVP; responsive web or PWA when app-store distribution and device APIs are not required.
+
+Default to the fastest good option and escalate to native only when native reliance is genuinely deep. In Hackathon mode, speed of setup overrides product fit. Record the choice as a decision with a revisit trigger.
+
+Read `references/platform-decision.md` for the surface signals, the native-reliance checklist, and the Hackathon override.
+
 ## Stage routing
 
 Route only the relevant workflow:
 
 | Situation | Default path |
 |---|---|
+| Mode fork (Indie vs Startup) | Market Probe → Mode recommendation → Product Lens |
 | Rough idea | Product Lens → Evidence Scout → Product-to-Pixels → MVP Forge |
 | Existing research | Evidence Scout → Product-to-Pixels → MVP Forge |
 | Existing UX/UI | Design Contract Validator → MVP Forge |
@@ -87,7 +101,7 @@ Do not treat document existence as approval. Never fabricate evidence. If resear
 
 Use the smallest applicable question set. Record each answer before asking the next question.
 
-**Universal intake:** what to build/improve, target user, desired outcome, current stage, platform, timebox, existing repository/research/design, desired completion action.
+**Universal intake:** what to build/improve, target user, desired outcome, current stage, intended surface (mobile app, web app, or both) and any device capabilities the product depends on, timebox, existing repository/research/design, desired completion action.
 
 **Mode questions:** solo or team, consumer or business buyer, recurring workflow or one-off use, monetization intent, demo versus learning versus scale goal, and operational constraints.
 
@@ -115,7 +129,7 @@ Use the internal capability contracts in `references/capabilities/` and template
 - GitHub Delivery Plan
 - Implementation Brief
 
-Read only the relevant contract and template for the current stage. Read `references/operating-modes.md` when selecting or explaining a mode, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
+Read only the relevant contract and template for the current stage. Read `references/operating-modes.md` when selecting or explaining a mode, `references/market-probe.md` before recommending Indie App versus Startup or when revisiting a mode, `references/platform-decision.md` when choosing the platform surface and track, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
 Read `references/qa-session.md` for the exact state machine and question/draft/review protocol.
 Read `references/done-bars.md` for phase completion criteria and `references/house-rules.md` for invariant selection.
 Use `scripts/workflow_runner.py` when deterministic phase transitions, review recording, or checkpoint state are needed.
@@ -126,6 +140,10 @@ For UX research, ask whether to use Mobbin, public sources, generated Mobbin que
 ## Scope expansion
 
 If a user adds unrelated work during a timeboxed plan, pause and ask whether to include it while cutting another item, move it to later, reject it, or revisit the timebox. Record the decision and protect the confirmed core flow.
+
+## Mode revisit
+
+The selected mode is a hypothesis with a revisit trigger, not a permanent label. Evaluate that trigger against observed signals at the MVP review. A switch requires explicit user confirmation, a new decision that supersedes the original rather than overwriting it, and a re-check of the platform track. Read `references/market-probe.md` for the signals in both directions and the switching rule.
 
 ## Completion actions
 

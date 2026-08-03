@@ -2,6 +2,7 @@
 
 ## Mode and timebox
 - Mode:
+- Mode revisit trigger:
 - Timebox:
 - Definition of done:
 
@@ -12,7 +13,11 @@
 |---|---|---|---|---|
 
 ## Technical plan
+- Platform surface:
+- Track:
 - Stack:
+- Why this over the alternatives:
+- Revisit trigger:
 - Repository assessment:
 - Persistence:
 - API boundaries:

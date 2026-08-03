@@ -13,6 +13,8 @@
 - Retention:
 - Distribution:
 - Technical failures:
+- Mode signals observed:
+- Mode still correct / switch recommended:
 
 ## Debt
 - Prototype debt:

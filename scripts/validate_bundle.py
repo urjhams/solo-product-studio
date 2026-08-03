@@ -18,6 +18,8 @@ REQUIRED = [
     "templates/implementation-brief.md",
     "schemas/implementation-brief.schema.json",
     "skills/product-studio/references/final-planning.md",
+    "skills/product-studio/references/platform-decision.md",
+    "skills/product-studio/references/market-probe.md",
     "skills/product-studio/references/capabilities/implementation-brief.md",
     "scripts/build_implementation_brief.py",
     "scripts/validate_implementation_brief.py",

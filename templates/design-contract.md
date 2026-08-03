@@ -36,5 +36,5 @@ visual_brief:
 - Signature component:
 - Motion plan:
 - Accessibility requirements:
-- Native platform mapping:
+- Platform mapping (native / cross-platform / web):
 - Acceptance criteria:
