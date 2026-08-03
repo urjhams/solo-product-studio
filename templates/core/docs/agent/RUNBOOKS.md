@@ -38,10 +38,7 @@ the exact HEAD, or it is forged. A new commit invalidates it; commit first, eval
 
 1. **Open the PR** to `{{DEFAULT_BRANCH}}` (push + `gh pr create`, PR template in `--body`,
    `Closes #n` when it resolves an issue).
-2. **Auto-spawn the matching reviewer** on the PR's final HEAD, by changed path:
-   {{REVIEWER_MAP}}
-   Reviewers are read-only — they return review text; they never push or comment themselves.
-3. **Post the review** as a PR comment yourself (`gh pr comment <n> --body …`).
+{{REVIEW_LANE_STEPS}}
 4. **Triage every finding**: valid / false-positive / out-of-scope. Never silently drop one.
 5. **Apply valid fixes**, run the affected tests, **commit + push** the fix commits.
 6. **Post resolutions** — one follow-up comment: each finding → what was done + post-fix test

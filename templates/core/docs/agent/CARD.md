@@ -27,9 +27,7 @@ opening a PR or delegating → `docs/agent/RUNBOOKS.md`.
    (the author must not grade its own work). SHIP → PR; FIX-FIRST → fix, re-run **once**, then
    escalate. **Docs/tooling-only diff → light lane: do NOT spawn the evaluator.**
 8. **Finishing a task = opening its PR** to `{{DEFAULT_BRANCH}}` — automatic, not on request.
-9. **Then the review:** spawn the matching `<area>-reviewer` on the PR's HEAD, post its review to
-   the PR, triage every finding, apply valid fixes, run affected tests, commit + push, post
-   resolutions. (Full flow: `RUNBOOKS.md#pr-flow`.)
+9. **Then the review:** {{REVIEW_LANE}} (Full flow: `RUNBOOKS.md#pr-flow`.)
 10. **Bounded loops:** one evaluator re-run, one reviewer re-review. Then stop and escalate.
 
 ## Delegation

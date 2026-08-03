@@ -4,7 +4,7 @@
 # {{PLACEHOLDERS}}) belongs to the skill/agent that wraps this, or to you with an editor.
 #
 # Usage:
-#   init.sh [--dest DIR] [--modules core,agents,claude-code,ci] [--force] [--list]
+#   init.sh [--dest DIR] [--modules core,agents,claude-code,ci,ci-review] [--force] [--list]
 #   init.sh --uninstall [--dest DIR]
 #   init.sh --check          # self-test into a temp dir
 #
@@ -65,6 +65,11 @@ EOF
 ci/github/workflows/ci.yml|.github/workflows/ci.yml
 EOF
       ;;
+    # online review lane: the review runs in Actions instead of a local reviewer subagent
+    ci-review) cat <<'EOF'
+ci/github/workflows/claude-review.yml|.github/workflows/claude-review.yml
+EOF
+      ;;
     *) echo "unknown module: $1" >&2; exit 1 ;;
   esac
 }
@@ -75,7 +80,7 @@ install() {
   # Validate up front: an exit inside `< <(map_module …)` process substitution
   # doesn't propagate, so a typo'd module would otherwise silently no-op.
   for mod in "${mods[@]}"; do
-    case "$mod" in core|agents|claude-code|ci) ;; *) echo "unknown module: $mod" >&2; exit 1 ;; esac
+    case "$mod" in core|agents|claude-code|ci|ci-review) ;; *) echo "unknown module: $mod" >&2; exit 1 ;; esac
   done
   mkdir -p "$DEST/$MANIFEST_DIR"
   touch "$DEST/$MANIFEST"
@@ -111,6 +116,7 @@ install() {
   echo "  1. Fill the {{PLACEHOLDERS}} — list them: grep -rn '{{[A-Z_]*}}' $DEST/AGENTS.md $DEST/docs/agent $DEST/.claude $DEST/.github 2>/dev/null"
   echo "  2. agents module: instantiate .claude/agents/_platform-reviewer.template.md once per component."
   echo "  3. claude-code module: hooks activate on next session; verify with a throwaway 'gh pr create' dry-run."
+  case ",$MODULES," in *,ci-review,*) echo "  4. ci-review module: set the API key secret — gh secret set ANTHROPIC_API_KEY" ;; esac
   echo "  Uninstall anytime: init.sh --uninstall (removes only unmodified generated files)."
 }
 
@@ -135,8 +141,8 @@ uninstall() {
 check() {
   local tmp; tmp=$(mktemp -d)
   echo "self-check in $tmp"
-  DEST="$tmp" MODULES="core,agents,claude-code,ci" FORCE=0 install >/dev/null
-  local expected="AGENTS.md CLAUDE.md docs/agent/CARD.md docs/agent/RUNBOOKS.md docs/agent/STATE.md docs/agent/STATE-archive.md docs/agent/GOTCHAS.md scripts/agent/compact-state.py .claude/agents/task-evaluator.md .claude/agents/_platform-reviewer.template.md .claude/settings.json .claude/hooks/session-card.sh .claude/hooks/require-verdict.sh .claude/hooks/state-autocompact.sh .github/workflows/ci.yml"
+  DEST="$tmp" MODULES="core,agents,claude-code,ci,ci-review" FORCE=0 install >/dev/null
+  local expected="AGENTS.md CLAUDE.md docs/agent/CARD.md docs/agent/RUNBOOKS.md docs/agent/STATE.md docs/agent/STATE-archive.md docs/agent/GOTCHAS.md scripts/agent/compact-state.py .claude/agents/task-evaluator.md .claude/agents/_platform-reviewer.template.md .claude/settings.json .claude/hooks/session-card.sh .claude/hooks/require-verdict.sh .claude/hooks/state-autocompact.sh .github/workflows/ci.yml .github/workflows/claude-review.yml"
   local fail=0
   for f in $expected; do
     [ -f "$tmp/$f" ] || { echo "MISSING: $f"; fail=1; }
@@ -170,5 +176,5 @@ case "$MODE" in
   install) install ;;
   uninstall) uninstall ;;
   check) check ;;
-  list) for m in core agents claude-code ci; do echo "[$m]"; map_module "$m" | sed 's/^/  /'; done ;;
+  list) for m in core agents claude-code ci ci-review; do echo "[$m]"; map_module "$m" | sed 's/^/  /'; done ;;
 esac
