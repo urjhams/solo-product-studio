@@ -14,4 +14,6 @@ In Hackathon mode the stack rationale is time to a running app on the demo devic
 
 In Prototype mode the plan is one flow, mocked to the boundary the user confirmed, 3–6 visible build steps, one runnable check on the flow's core logic, and a click-through acceptance path. Drop the architecture level, persistence, permissions, and demo script sections unless the idea is about them. See `references/prototype-mode.md`.
 
+On a native Apple track, resolve the XcodeBuildMCP question before writing the tests and definition-of-done sections: with it, verification items are real `build_sim` / `test_sim` runs and simulator screenshots; without it, they are `xcodebuild` shell commands or manual Xcode steps. See `adapters/xcodebuild-mcp/README.md`.
+
 Handoff: implementation, `mvp-auditor`, or `github-delivery`.

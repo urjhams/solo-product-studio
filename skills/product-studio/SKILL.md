@@ -62,6 +62,8 @@ Decide the platform before the Design Contract, never as a passive slot. Pick a 
 
 Default to the fastest good option and escalate to native only when native reliance is genuinely deep. In Prototype and Hackathon modes, speed of setup overrides product fit — prefer Expo over native iOS even when the eventual product would be native, unless the native capability is the thing being validated. Record the choice as a decision with a revisit trigger.
 
+When the track is native Apple (SwiftUI or UIKit on iOS, macOS, watchOS, tvOS, visionOS), check for XcodeBuildMCP (`mcp__XcodeBuildMCP__*`) before drafting the build plan, prefer it over raw `xcodebuild`, and ask the user once whether to install it if it is absent. Continue either way and record which path was taken; never report a build, test, or simulator run that did not happen. See `adapters/xcodebuild-mcp/README.md`.
+
 Read `references/platform-decision.md` for the surface signals, the native-reliance checklist, and the Hackathon override.
 
 ## Stage routing

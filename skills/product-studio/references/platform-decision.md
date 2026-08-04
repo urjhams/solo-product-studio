@@ -59,6 +59,16 @@ Web: Next.js with local or in-memory state. No auth provider, no hosted database
 
 Still record the decision, with a revisit trigger noting the choice was made on demo speed and must be re-decided if the project continues past the demo.
 
+## Native Apple toolchain
+
+When the track is native SwiftUI or UIKit on any Apple platform, check for XcodeBuildMCP (`mcp__XcodeBuildMCP__*`) before drafting the MVP Build Plan. It is the difference between a native plan whose builds and tests the agent can actually run and one that hands every check back to the user.
+
+If it is missing, ask once whether to install it, then continue either way: install now, use `xcodebuild` from the shell, or write manual Xcode steps as unresolved verification items. Record the outcome in `capabilities.integrations.xcodebuild-mcp`. Never report a build, test, or simulator run that did not happen.
+
+In Prototype and Hackathon modes an unconfigured Apple toolchain counts as setup cost against the native track — one more reason Expo wins there.
+
+Read `adapters/xcodebuild-mcp/README.md` for detection, the install prompt, and usage rules.
+
 ## Always
 
 - Record the choice as `D-###` with rationale, the rejected alternative, and a **revisit trigger** — the concrete signal that would flip it.

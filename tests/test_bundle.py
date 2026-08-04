@@ -108,6 +108,15 @@ class BundleTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, (skill + protocol).lower())
 
+    def test_native_apple_track_prefers_xcodebuild_mcp_with_fallback(self):
+        adapter = (ROOT / "skills/product-studio/adapters/xcodebuild-mcp/README.md").read_text().lower()
+        for phrase in ["mcp__xcodebuildmcp__", "install", "xcodebuild", "fallback"]:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, adapter)
+        skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
+        self.assertIn("XcodeBuildMCP", skill)
+        self.assertIn("XcodeBuildMCP", (ROOT / "skills/product-studio/references/platform-decision.md").read_text())
+
     def test_workbench_is_optional_with_local_fallback(self):
         adapter = ROOT / "skills/product-studio/adapters/workbench/README.md"
         self.assertTrue(adapter.exists())

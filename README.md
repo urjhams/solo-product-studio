@@ -165,6 +165,7 @@ Resume by invoking `product-studio` again. It reads the state, summarizes comple
 
 - Web research: cite sources when available; otherwise produce assumptions and a research plan.
 - Mobbin: optional; otherwise use the bundled UX pattern library and platform guidance.
+- XcodeBuildMCP: preferred on any native Apple track (SwiftUI/UIKit) so builds, tests, simulator runs, and screenshots are real verification instead of instructions. If it is not installed, Product Studio offers to have you install it once, then continues either with `xcodebuild` shell commands or with manual Xcode steps recorded as unresolved checks.
 - GitHub connector or `gh`: inspect existing issues and publish only after approval.
 - No GitHub access: export local YAML and Markdown issue plans.
 - Existing repository: inspect and adapt the build plan.

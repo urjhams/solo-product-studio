@@ -18,6 +18,9 @@ def main() -> int:
             "web-research": {"status": "host-tool", "fallback": "research-plan-only"},
             "github": {"status": "gh-cli" if shutil.which("gh") else "local-only", "fallback": "local-export"},
             "mobbin": {"status": "optional", "fallback": "bundled-pattern-library"},
+            # Local xcodebuild only proves the Apple toolchain exists; the MCP server is
+            # separate and must be detected from the host tool list.
+            "xcodebuild-mcp": {"status": "host-tool", "toolchain": "xcodebuild" if shutil.which("xcodebuild") else "missing", "fallback": "xcodebuild-cli-then-manual-xcode"},
             "figma": {"status": "optional", "fallback": "design-contract-only"},
         },
     }
