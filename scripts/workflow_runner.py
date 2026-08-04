@@ -17,10 +17,10 @@ def now() -> str:
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
 
 
-def new_state(project_id: str = "product") -> dict[str, Any]:
+def new_state(project_id: str = "product", mode: str = "custom") -> dict[str, Any]:
     timestamp = now()
     return {
-        "project": {"id": project_id, "stage": "idea", "mode": "custom", "created_at": timestamp, "updated_at": timestamp, "goal": "", "protected_outcome": "", "path": ""},
+        "project": {"id": project_id, "stage": "idea", "mode": mode, "created_at": timestamp, "updated_at": timestamp, "goal": "", "protected_outcome": "", "path": ""},
         "house_rules": {"constraints": [], "non_negotiables": [], "scope_exclusions": [], "evidence_policy": "cite sources; label inference and unknowns", "approval_boundaries": ["external publication", "irreversible decisions"]},
         "session": {"status": "intake", "current_phase": "intake", "current_gate": "goal-and-house-rules", "next_action": "ask-intake-question", "questions": [], "unanswered_questions": [], "iteration_count": 0, "approval_status": "pending", "last_checkpoint": None, "updated_at": timestamp},
         "phases": {phase: {"status": "in_progress" if phase == "intake" else "pending", "done_bar": [], "result": None} for phase in PHASES},
@@ -111,6 +111,9 @@ def checkpoint(state: dict[str, Any], phase: str) -> dict[str, Any]:
             state["session"]["approval_status"] = "blocked"
             state["session"]["updated_at"] = now()
             return state
+    # ponytail: prototype mode is throwaway validation, a passing self review clears its checkpoints
+    if state["project"].get("mode") == "prototype" and any_pass:
+        independent_pass = True
     if not independent_pass:
         state["phases"][phase]["status"] = "blocked" if any_pass else "reviewing"
         state["session"]["approval_status"] = "self_review_only" if any_pass else "pending"

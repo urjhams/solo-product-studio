@@ -24,7 +24,7 @@ class BundleTests(unittest.TestCase):
 
     def test_skill_starts_with_qa_and_mode_routing(self):
         skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
-        for phrase in ["What do you want to build or improve?", "Hackathon", "Indie App", "SaaS", "Startup", "wait for explicit confirmation", "Expo", "Flutter", "SwiftUI", "Next.js", "market probe", "Mode revisit"]:
+        for phrase in ["What do you want to build or improve?", "Prototype", "Hackathon", "Indie App", "SaaS", "Startup", "wait for explicit confirmation", "Expo", "Flutter", "SwiftUI", "Next.js", "market probe", "Mode revisit"]:
             self.assertIn(phrase, skill)
 
     def test_schemas_are_valid_json(self):
@@ -90,7 +90,7 @@ class BundleTests(unittest.TestCase):
         skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
         docs = "\n".join(path.read_text() for path in (ROOT / "docs/examples").glob("*.md"))
         required_terms = [
-            "Hackathon", "Indie App", "SaaS", "Startup", "Production", "Custom",
+            "Prototype", "Hackathon", "Indie App", "SaaS", "Startup", "Production", "Custom",
             "Mobbin", "research plan", "GitHub Issues", "Resume", "Scope expansion",
             "MVP Auditor", "Product Synthesizer", "completion gate", "explicit confirmation",
         ]
@@ -126,6 +126,22 @@ class BundleTests(unittest.TestCase):
         checkpoint(state, "product")
         self.assertEqual(state["session"]["approval_status"], "approved")
         self.assertEqual(state["phases"]["product"]["status"], "checkpointed")
+
+    def test_prototype_mode_rules_are_explicit(self):
+        prototype = (ROOT / "skills/product-studio/references/prototype-mode.md").read_text()
+        modes = (ROOT / "skills/product-studio/references/operating-modes.md").read_text()
+        for phrase in ["mock boundary", "confirm", "expo", "validation question", "cut", "one runnable check"]:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, prototype.lower())
+        self.assertIn("Prototype", modes)
+
+    def test_prototype_mode_clears_checkpoint_on_self_review(self):
+        state = new_state("demo", mode="prototype")
+        begin_phase(state, "mvp")
+        record_review(state, "mvp", "self", True, [])
+        checkpoint(state, "mvp")
+        self.assertEqual(state["phases"]["mvp"]["status"], "checkpointed")
+        self.assertEqual(state["session"]["approval_status"], "approved")
 
     def test_workflow_runner_repair_iteration_and_next_phase(self):
         state = new_state("demo")

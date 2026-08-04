@@ -4,7 +4,7 @@ A bounded research pass that runs **before** the mode recommendation so the Indi
 
 ## When to run it
 
-Run it only when the mode choice is genuinely between **Indie App and Startup**, or when monetization intent is unstated. Skip it for Hackathon, for Production, and when the user selects a mode explicitly — there is no fork to resolve.
+Run it only when the mode choice is genuinely between **Indie App and Startup**, or when monetization intent is unstated. Skip it for Prototype, for Hackathon, for Production, and when the user selects a mode explicitly — there is no fork to resolve.
 
 ## Three questions, nothing else
 

@@ -39,8 +39,11 @@ State these as a concise working agreement and ask the user to confirm or correc
 
 Recommend one mode from the idea and constraints, explain why, and let the user override it.
 
+Ask how the work will be judged before recommending a fast mode. Prototype and Hackathon differ in what the build must prove: Prototype answers "does the idea hold?" for the user, Hackathon answers "does this impress an audience?" at a fixed event. If neither an audience nor a shipping intent exists yet, Prototype is the recommendation.
+
 When the choice is between Indie App and Startup, or monetization intent is unknown, run the bounded market probe in `references/market-probe.md` first. Present the recommendation with confidence, the evidence behind it, and what would change it. Do not guess this fork from the user's own framing alone.
 
+- **Prototype**: validate the idea, not ship a product. One flow, smallest scope that carries the idea, mock everything by default with the mock boundary confirmed by the user, fastest track to a clickable app, minimum tests, throwaway-friendly. Pick this when the user wants a quick MVP, a proof of concept, or to see the idea before committing to build it.
 - **Hackathon**: 2–8 hours, demo/showcase, one core flow, memorable wow moment, mock-first, one major integration maximum, fastest toolchain to a running app.
 - **Indie App**: solo/small team, narrow paid wedge, low maintenance, one platform first, payment and margin validation.
 - **SaaS**: recurring business workflow, buyer/user distinction, measurable ROI, roles, onboarding, billing, and reliability deferred until the core workflow is proven.
@@ -57,7 +60,7 @@ Decide the platform before the Design Contract, never as a passive slot. Pick a 
 - Mobile: **Expo** by default for a product MVP, startup app, CRUD/workflow app, or a fast iOS-and-Android launch; **Flutter** when a bespoke shared visual identity is the hero moment; **native SwiftUI** when the product is iOS-first, needs deep Apple integration, demanding performance, or a premium platform-specific experience.
 - Web: **Next.js with hosted Postgres and hosted auth** for a SaaS or workflow MVP; responsive web or PWA when app-store distribution and device APIs are not required.
 
-Default to the fastest good option and escalate to native only when native reliance is genuinely deep. In Hackathon mode, speed of setup overrides product fit. Record the choice as a decision with a revisit trigger.
+Default to the fastest good option and escalate to native only when native reliance is genuinely deep. In Prototype and Hackathon modes, speed of setup overrides product fit — prefer Expo over native iOS even when the eventual product would be native, unless the native capability is the thing being validated. Record the choice as a decision with a revisit trigger.
 
 Read `references/platform-decision.md` for the surface signals, the native-reliance checklist, and the Hackathon override.
 
@@ -67,6 +70,7 @@ Route only the relevant workflow:
 
 | Situation | Default path |
 |---|---|
+| Prototype / idea validation | Quick validate → Product-to-Pixels (short) → MVP Forge (prototype plan) |
 | Mode fork (Indie vs Startup) | Market Probe → Mode recommendation → Product Lens |
 | Rough idea | Product Lens → Evidence Scout → Product-to-Pixels → MVP Forge |
 | Existing research | Evidence Scout → Product-to-Pixels → MVP Forge |
@@ -77,7 +81,7 @@ Route only the relevant workflow:
 | GitHub delivery | Repository inspection → GitHub Delivery |
 | Resume | Load state → summarize completed artifacts → continue at next incomplete gate |
 
-Do not force the complete lifecycle. A Hackathon path may stop at an MVP demo plan; an Indie or SaaS path may continue to payment or workflow validation; a Startup path may continue to retention and distribution; Production mode may begin from an already validated definition.
+Do not force the complete lifecycle. A Prototype path stops at a clickable prototype and a validation verdict, skipping the Evidence Pack and the Product Opportunity Brief; a Hackathon path may stop at an MVP demo plan; an Indie or SaaS path may continue to payment or workflow validation; a Startup path may continue to retention and distribution; Production mode may begin from an already validated definition.
 
 ## QA gates and phase checkpoints
 
@@ -111,6 +115,8 @@ Use the smallest applicable question set. Record each answer before asking the n
 
 **MVP questions:** critical path, mock boundary, essential real integration, persistence, time allocation, cut trigger, test risk, and definition of done.
 
+**Prototype questions:** the one flow, what the prototype must let the user judge, what may be faked versus what must be real, existing local toolchain, timebox, and what happens after the verdict. Always confirm the mock boundary explicitly rather than assuming it.
+
 After each answer update the relevant state section. Use `A-###` for assumptions and `D-###` for decisions. A workflow may transition only through `intake → proposed → confirmed → drafting → review → approved` (or `paused`/`rejected`). Store the current phase, gate, done bar, approval status, next action, and iteration count so a resumed session continues exactly where it stopped.
 
 For every artifact, read the matching template, fill all required sections, show unresolved fields explicitly, and evaluate it against the phase done bar/completion gate. Do not ask for approval solely because an artifact exists. If the bar fails, repair the highest-impact gap and reevaluate.
@@ -130,6 +136,7 @@ Use the internal capability contracts in `references/capabilities/` and template
 - Implementation Brief
 
 Read only the relevant contract and template for the current stage. Read `references/operating-modes.md` when selecting or explaining a mode, `references/market-probe.md` before recommending Indie App versus Startup or when revisiting a mode, `references/platform-decision.md` when choosing the platform surface and track, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
+Read `references/prototype-mode.md` before running any phase in Prototype mode; it overrides the default scope, mock, platform, research, testing, and done-bar rules.
 Read `references/qa-session.md` for the exact state machine and question/draft/review protocol.
 Read `references/done-bars.md` for phase completion criteria and `references/house-rules.md` for invariant selection.
 Use `scripts/workflow_runner.py` when deterministic phase transitions, review recording, or checkpoint state are needed.
@@ -142,6 +149,8 @@ For UX research, ask whether to use Mobbin, public sources, generated Mobbin que
 If a user adds unrelated work during a timeboxed plan, pause and ask whether to include it while cutting another item, move it to later, reject it, or revisit the timebox. Record the decision and protect the confirmed core flow.
 
 ## Mode revisit
+
+Prototype is always temporary. When the prototype has answered its validation question, re-run mode selection with the user instead of continuing to build in Prototype mode.
 
 The selected mode is a hypothesis with a revisit trigger, not a permanent label. Evaluate that trigger against observed signals at the MVP review. A switch requires explicit user confirmation, a new decision that supersedes the original rather than overwriting it, and a re-check of the platform track. Read `references/market-probe.md` for the signals in both directions and the switching rule.
 

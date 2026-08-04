@@ -35,6 +35,14 @@ Flutter overrides Expo only when the bespoke shared visual identity is the hero 
 - **Responsive web or PWA** when app-store distribution and device APIs are not required. It substitutes for a mobile app in the MVP.
 - Deviate when there is heavy realtime, a non-JavaScript team, or an existing backend to build on.
 
+## Prototype override
+
+In Prototype mode the tiebreaker is **minutes to a clickable app on a real device**, with product fit used only to break ties. Expo beats native iOS even when the eventual product would be native — validating the idea in Expo does not commit the product to it, and the native call is re-decided after the verdict. Web prototypes use Next.js or Vite with in-memory state: no auth provider, no hosted database, no ORM.
+
+The only escalation to native SwiftUI or Flutter is when the capability being validated *is* the native capability, or when the user's only configured toolchain is that one.
+
+Full rules: `references/prototype-mode.md`.
+
 ## Hackathon override
 
 In Hackathon mode the tiebreaker is not product fit, it is **minutes to a running app on the demo device, counting setup**. Ask what the user already has installed before recommending anything; existing local setup outranks product fit here and nowhere else.

@@ -12,4 +12,6 @@ Gate: core flow executable, platform track chosen with rationale and revisit tri
 
 In Hackathon mode the stack rationale is time to a running app on the demo device, not product fit. See `references/platform-decision.md`.
 
+In Prototype mode the plan is one flow, mocked to the boundary the user confirmed, 3–6 visible build steps, one runnable check on the flow's core logic, and a click-through acceptance path. Drop the architecture level, persistence, permissions, and demo script sections unless the idea is about them. See `references/prototype-mode.md`.
+
 Handoff: implementation, `mvp-auditor`, or `github-delivery`.

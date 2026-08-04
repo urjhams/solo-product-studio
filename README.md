@@ -36,6 +36,7 @@ Questions use numbered choices for categorical decisions and always allow a cust
 
 The skill separates product stage from operating mode.
 
+- **Prototype Mode**: super-fast MVP to validate an idea. One flow, minimum scope, mock data everywhere (boundary confirmed with you), fastest track to a clickable app, minimum tests, throwaway by design.
 - **Hackathon Mode**: fast MVP, one core flow, mock-first, impressive wow moment, demo script, strict cuts.
 - **Indie App Mode**: narrow paid wedge, one-person maintainability, simple distribution, early payment validation.
 - **SaaS Mode**: buyer/user distinction, workflow ROI, repeat usage, roles and billing considered without premature platform overbuilding.
@@ -50,7 +51,10 @@ Rough idea → Product Lens → Evidence Scout → UX Contract → MVP Forge
 Existing MVP → MVP Auditor → Product Synthesizer → Production Blueprint
 SaaS idea → Buyer/user QA → workflow validation → SaaS MVP → production planning
 Hackathon idea → hero moment → complete core flow → demo-ready MVP
+Unvalidated idea → quick validate → one mocked flow → clickable prototype → verdict
 ```
+
+Prototype and Hackathon are both fast and mock-first but prove different things: Prototype answers "does the idea hold?" for you, Hackathon answers "does this impress an audience?" at an event. Prototype prefers the fastest track over eventual product fit — Expo over native iOS unless the native capability is the thing being validated — and it is temporary: once the idea is judged, mode selection runs again.
 
 You can accept the recommendation, choose another mode, customize it, or answer more questions.
 

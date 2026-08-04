@@ -1,5 +1,9 @@
 # Phase done bars
 
+## Prototype
+
+Replaces the Product, Research, Design, and MVP bars in Prototype mode: the one flow runs end to end on the target device, the user-confirmed mock boundary is explicit, the cut list is written down, the validation question is stated and answerable by using the prototype, and every faked assumption is recorded as `A-###`. Independent review is not required. See `references/prototype-mode.md`.
+
 ## Product
 
 Target user, specific problem, narrow wedge, promise, critical assumptions, risks, and next experiment are explicit.

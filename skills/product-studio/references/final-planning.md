@@ -11,4 +11,6 @@ Run this phase after an approved MVP Build Plan or Production Blueprint and befo
 7. Send the brief to an independent reviewer. Repair the highest-impact finding and repeat until it passes. Without a fresh review context, mark `self_review_only` and block approval.
 8. At the checkpoint, show source artifacts, unresolved items, verification status, and the selected next action.
 
+**Prototype mode short form.** All six brief sections are still required, but Verification is the click-through path plus the single core-logic check, step 7 may end as `self_review_only` without blocking handoff, and the brief must state that the output is a throwaway prototype not to be extended without re-running mode selection. See `references/prototype-mode.md`.
+
 The detailed MVP or Production artifact remains authoritative for scope and architecture; the Implementation Brief is the final execution contract derived from it. Keep both synchronized through project state.
