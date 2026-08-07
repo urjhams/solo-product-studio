@@ -22,11 +22,20 @@ else
   command=$(printf '%s' "$input" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 fi
 
+block() { printf '{"decision":"block","reason":"%s"}\n' "$1"; exit 0; }
+
+# `gh pr merge --admin` bypasses branch protection — never allowed, no in-session override.
+# A plain merge is allowed, so a session can chain PR -> review -> merge -> next task without
+# stalling; whether to merge at all is governed by AGENTS.md (only when the task asked for it).
+if printf '%s' "$command" | grep -qE '(^|&&|\|\||;)[[:space:]]*gh[[:space:]]+pr[[:space:]]+merge'; then
+  printf '%s' "$command" | grep -qE '(^|[[:space:]])--admin([[:space:]=]|$)' \
+    && block "gh pr merge --admin bypasses branch protection. Merge without --admin, or ask the user to merge in the GitHub UI."
+  exit 0
+fi
+
 # Match `gh pr create` as a command target (start of string or after a shell operator),
 # never as a prose mention inside a commit message or comment body.
 printf '%s' "$command" | grep -qE '(^|&&|\|\||;)[[:space:]]*gh[[:space:]]+pr[[:space:]]+create' || exit 0
-
-block() { printf '{"decision":"block","reason":"%s"}\n' "$1"; exit 0; }
 
 base=$(git merge-base HEAD "origin/{{DEFAULT_BRANCH}}" 2>/dev/null || echo "")
 changed=$(git diff --name-only "${base:-HEAD~1}"...HEAD 2>/dev/null)
