@@ -5,8 +5,10 @@ Each contract defines purpose, inputs, outputs, completion gate, bundled require
 - `product-lens.md`
 - `evidence-scout.md`
 - `product-to-pixels.md`
+- `spec-cartographer.md`
 - `mvp-forge.md`
 - `mvp-auditor.md`
+- `reality-check.md`
 - `product-synthesizer.md`
 - `production-blueprint.md`
 - `github-delivery.md`

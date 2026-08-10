@@ -8,6 +8,7 @@
 - Operating mode and path:
 - Mode revisit trigger:
 - Repository and relevant directories:
+- Behavior spec path: (canonical `.product-studio/artifacts/behavior-spec.md`, mirror `docs/agent/BEHAVIORS.md`)
 - Approved source artifacts:
 - Existing tests, design references, and documentation:
 - Prior decisions and known risks:
@@ -28,7 +29,8 @@
 - Required conventions:
 - Mock/real integration boundaries:
 - Approval boundaries:
-- Non-negotiable acceptance criteria:
+- Non-negotiable acceptance criteria: (one line each, every line citing the BH-### it enforces)
+  - BH-000 — 
 
 ## Verification — do not finish until
 - [ ] Check description — Evidence: — Owner: — Status: unresolved

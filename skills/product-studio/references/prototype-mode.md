@@ -56,6 +56,18 @@ Bounded to a quick validate pass, ahead of the build: does anything like this al
 
 If web research is unavailable, record the gap and continue. A prototype is itself the validation instrument; do not block it on research.
 
+## Specify rule
+
+Short form, timeboxed to ten minutes. Skipping it entirely is not an option: a prototype that validates the wrong reading of the idea has answered nothing, and the wrong reading is exactly what a vague idea produces.
+
+- 3–7 behaviors covering the one flow: the happy path, the one precondition failure that would embarrass the demo, and whatever the validation question actually turns on.
+- Sweep only the ambiguity classes that change what the user can judge — `term`, `boundary`, `visibility`. Skip actor, state, timing, failure, identity, quantity, and reversibility unless the idea being validated is about one of them.
+- Ambiguities may stay `deferred` without a revisit trigger. Nothing blocks.
+- Run `scripts/validate_behavior_spec.py <spec> --prototype`; open ambiguities warn instead of failing.
+- The repository mirror is optional for a throwaway prototype.
+
+`workflow_runner.py` reads `project.mode: prototype` and records an unclosed spec as `prototype-warning: <reason>` on the phase instead of blocking the checkpoint.
+
 ## Plan rule
 
 Produce a short MVP Build Plan, fast-mode shaped:
@@ -77,6 +89,7 @@ Minimum. One runnable check on the flow's core logic — whatever breaks the pro
 - no unit tests for UI components, layout, or navigation
 - no snapshot tests, no end-to-end suite, no coverage target, no CI
 - non-trivial logic that decides the flow's outcome (a scoring rule, a matcher, a money or date calculation) gets one small test; the rest is verified by clicking through
+- the one test names the `BH-###` it proves, and the behaviors verified by clicking through use `Level: manual`
 - state the manual click-through path as the acceptance check, step by step
 
 ## Done bar

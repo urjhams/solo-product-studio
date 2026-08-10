@@ -24,6 +24,16 @@ REQUIRED = [
     "skills/product-studio/references/capabilities/implementation-brief.md",
     "scripts/build_implementation_brief.py",
     "scripts/validate_implementation_brief.py",
+    "skills/product-recheck/SKILL.md",
+    "skills/product-studio/references/spec-hardening.md",
+    "skills/product-studio/references/behavior-discovery.md",
+    "skills/product-studio/references/capabilities/spec-cartographer.md",
+    "skills/product-studio/references/capabilities/reality-check.md",
+    "templates/behavior-spec.md",
+    "templates/reevaluation-verdict.md",
+    "schemas/behavior-spec.schema.json",
+    "scripts/validate_behavior_spec.py",
+    "docs/examples/spec-hardening.md",
 ]
 
 def main() -> int:
@@ -37,6 +47,18 @@ def main() -> int:
         errors.append("SKILL.md must have portable name/description frontmatter")
     if "/product-studio" not in text or "What do you want to build or improve?" not in text:
         errors.append("SKILL.md is missing public entry/intake behavior")
+    recheck = root / "skills/product-recheck/SKILL.md"
+    recheck_text = recheck.read_text() if recheck.exists() else ""
+    if not re.search(r"^---\nname: product-recheck\ndescription: .+\n---", recheck_text, re.MULTILINE):
+        errors.append("product-recheck SKILL.md must have portable name/description frontmatter")
+    if "/product-recheck" not in recheck_text:
+        errors.append("product-recheck SKILL.md is missing its public entry")
+    # the behavior-spec format marker is a shared contract with the workflow-init skill
+    marker = "<!-- behavior-spec/v1 -->"
+    for name in ("templates/behavior-spec.md", "docs/examples/spec-hardening.md"):
+        path = root / name
+        if path.is_file() and marker not in path.read_text():
+            errors.append(f"{name} is missing the {marker} format marker")
     for path in (root / "schemas").glob("*.json"):
         try:
             json.loads(path.read_text())

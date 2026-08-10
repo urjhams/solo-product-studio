@@ -7,7 +7,9 @@ description: Run an interactive product QA session that turns a product idea, ex
 
 Act as the user's product QA partner and implementation planner. Begin with a short adaptive interview, establish a goal and house rules, then run the confirmed phase with disciplined autonomy. Do not generate a large plan before understanding the user's product, stage, constraints, and desired outcome.
 
-The only public slash entry is `/product-studio`. If the host has no slash-command surface, accept `Use product-studio to help me build a product.` instead.
+The public slash entry is `/product-studio`. If the host has no slash-command surface, accept `Use product-studio to help me build a product.` instead. A second public skill, `/product-recheck`, re-evaluates a project already under development; route there instead of restarting intake when the user has code and wants a verdict.
+
+The lifecycle is **Discover → Specify → Red → Green → Refactor**. Discover is the intake, product, research, and design phases below. Specify turns the Design Contract into behaviors and closes every ambiguity in them. Red, Green, and Refactor belong to the implementing agent and are governed by the Behavior Spec this skill hands it. A test suite written over a misread requirement passes and proves nothing, so the misreading has to be caught in Specify.
 
 ## Start every session
 
@@ -72,18 +74,36 @@ Route only the relevant workflow:
 
 | Situation | Default path |
 |---|---|
-| Prototype / idea validation | Quick validate → Product-to-Pixels (short) → MVP Forge (prototype plan) |
+| Prototype / idea validation | Quick validate → Product-to-Pixels (short) → Spec Cartographer (short form) → MVP Forge (prototype plan) |
 | Mode fork (Indie vs Startup) | Market Probe → Mode recommendation → Product Lens |
-| Rough idea | Product Lens → Evidence Scout → Product-to-Pixels → MVP Forge |
-| Existing research | Evidence Scout → Product-to-Pixels → MVP Forge |
-| Existing UX/UI | Design Contract Validator → MVP Forge |
-| MVP planning/build | MVP Forge, with Technical Feasibility and Scope Guard |
+| Rough idea | Product Lens → Evidence Scout → Product-to-Pixels → Spec Cartographer → MVP Forge |
+| Existing research | Evidence Scout → Product-to-Pixels → Spec Cartographer → MVP Forge |
+| Existing UX/UI | Design Contract Validator → Spec Cartographer → MVP Forge |
+| MVP planning/build | Spec Cartographer → MVP Forge, with Technical Feasibility and Scope Guard |
+| Mid-development re-evaluation | Reality Check → Drift Report → Spec Hardening → Verdict (`/product-recheck`) |
 | Existing MVP | MVP Auditor → Product Synthesizer → Production Blueprint |
 | Production need | Product Synthesizer or existing definition → Production Blueprint |
 | GitHub delivery | Repository inspection → GitHub Delivery |
 | Resume | Load state → summarize completed artifacts → continue at next incomplete gate |
 
 Do not force the complete lifecycle. A Prototype path stops at a clickable prototype and a validation verdict, skipping the Evidence Pack and the Product Opportunity Brief; a Hackathon path may stop at an MVP demo plan; an Indie or SaaS path may continue to payment or workflow validation; a Startup path may continue to retention and distribution; Production mode may begin from an already validated definition.
+
+## Specification
+
+Between the Design Contract and the MVP Build Plan, run the `specify` phase. It produces one artifact, the Behavior Spec, and it exists because scope alone does not tell an implementing agent what the product must do.
+
+Two activities, in order:
+
+1. **Behavior discovery.** For each in-scope capability, walk the eight branches in `references/behavior-discovery.md` and write a `BH-###` for each one that survives. Product scope and behavior scope are separate: cutting product scope removes capabilities, cutting behavior scope removes correctness. Never trade a behavior away to hit a timebox — defer it with an assumption and a revisit trigger so the gap stays visible.
+2. **Spec hardening.** Assume the specification is incomplete. Sweep every requirement sentence against the ten ambiguity classes in `references/spec-hardening.md` and record each finding as an `AM-###` with two reasonable readings, the user-visible difference between them, the decision needed, and your recommendation. Resolve what the product definition and prior decisions already answer; ask the user the rest, highest impact first, with a recommended pick.
+
+Every ambiguity terminates in `resolved -> D-###`, `deferred -> A-###` with a revisit trigger, or `out_of_scope`. **An ambiguity left `open` blocks the Implementation Brief.** Repeat the sweep until a pass finds nothing new — resolving one ambiguity routinely exposes another.
+
+Write the Behavior Spec to `.product-studio/artifacts/behavior-spec.md` and mirror it byte-for-byte to `docs/agent/BEHAVIORS.md` in the repository, so the implementing agent, the reviewer, and CI read the file the code lives beside. Verify both with `scripts/validate_behavior_spec.py <canonical> --mirror docs/agent/BEHAVIORS.md`, then record `behavior_spec`, `mirror`, `behaviors`, `open_ambiguities`, and `validated` in the `specify:` block of `.product-studio/project.yaml`. Set `validated: true` only after the validator actually passed.
+
+Downstream, behaviors are load-bearing: MVP Build Plan slices are cut along them, every acceptance criterion in the Implementation Brief cites the `BH-###` it enforces, and every test the implementing agent writes names the behavior it proves. That last link is what makes an orphan test findable later.
+
+In Prototype mode this is the short form — see `references/prototype-mode.md`. Do not skip it: a prototype that validates the wrong reading of the idea has answered nothing.
 
 ## QA gates and phase checkpoints
 
@@ -130,15 +150,18 @@ Use the internal capability contracts in `references/capabilities/` and template
 - Product Opportunity Brief
 - Evidence Pack
 - Design Contract
+- Behavior Spec
 - MVP Build Plan
 - MVP Review Report
 - Updated Product Definition
 - Production Build Blueprint
 - GitHub Delivery Plan
 - Implementation Brief
+- Re-evaluation Verdict (`/product-recheck`)
 
 Read only the relevant contract and template for the current stage. Read `references/operating-modes.md` when selecting or explaining a mode, `references/market-probe.md` before recommending Indie App versus Startup or when revisiting a mode, `references/platform-decision.md` when choosing the platform surface and track, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
 Read `references/prototype-mode.md` before running any phase in Prototype mode; it overrides the default scope, mock, platform, research, testing, and done-bar rules.
+Read `references/behavior-discovery.md` and `references/spec-hardening.md` before running the `specify` phase, and `references/spec-hardening.md` again whenever a requirement changes after Specify — a changed requirement reopens the sweep.
 Read `references/qa-session.md` for the exact state machine and question/draft/review protocol.
 Read `references/done-bars.md` for phase completion criteria and `references/house-rules.md` for invariant selection.
 Use `scripts/workflow_runner.py` when deterministic phase transitions, review recording, or checkpoint state are needed.
@@ -160,16 +183,16 @@ The selected mode is a hypothesis with a revisit trigger, not a permanent label.
 
 After an approved MVP or production plan and an approved Implementation Brief, offer:
 
-1. Start implementation now: read the Implementation Brief first, inspect the repository, lock scope, implement the first vertical slice, run every verification check, and update state.
+1. Start implementation now: read the Implementation Brief and the Behavior Spec first, inspect the repository, lock scope, implement the first vertical slice test-first, name the `BH-###` in every test written, run every verification check, and update state.
 2. Save plan only: write artifacts and state without source changes.
 3. Export the Implementation Brief as a standalone implementation prompt.
-4. Create GitHub Issues from the brief: preserve acceptance and verification criteria, inspect existing issues/milestones, show a proposal, publish only after approval.
+4. Create GitHub Issues from the brief: preserve acceptance and verification criteria including their `BH-###` citations, inspect existing issues/milestones, show a proposal, publish only after approval.
 5. Save and create GitHub Issues.
 
 ## Persistence
 
-Maintain one canonical state file at `.product-studio/project.yaml` and Markdown artifacts under `.product-studio/artifacts/`. Update only the relevant sections. Store capability availability, goal, house rules, mode, stage, path, questions answered, assumptions, decisions, phase status, done bars, review iterations, approvals, and next gate. Use `scripts/init_project.py` or `scripts/discover_capabilities.py` when deterministic local setup is useful.
+Maintain one canonical state file at `.product-studio/project.yaml` and Markdown artifacts under `.product-studio/artifacts/`. Update only the relevant sections. Store capability availability, goal, house rules, mode, stage, path, questions answered, assumptions, decisions, behaviors and open ambiguity counts, phase status, done bars, review iterations, approvals, and next gate. The Behavior Spec is the one artifact that also lives in the repository, mirrored at `docs/agent/BEHAVIORS.md` and tracked in git with the code it describes. Use `scripts/init_project.py` or `scripts/discover_capabilities.py` when deterministic local setup is useful.
 
 ## Host portability
 
-This is the only public skill. On hosts without slash commands, invoke it with `Use product-studio to help me build a product.` Supporting files are relative to this directory. Never claim a provider was used unless its adapter actually succeeded.
+This bundle has two public skills: `product-studio` for idea-to-brief work and `product-recheck` for re-evaluating a project already under development. On hosts without slash commands, invoke them with `Use product-studio to help me build a product.` and `Use product-recheck to re-evaluate this project.` Supporting files are relative to this directory; `product-recheck` reads the same references, templates, schemas, and state. Never claim a provider was used unless its adapter actually succeeded.

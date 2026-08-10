@@ -9,8 +9,12 @@
 ## Critical path
 
 ## Vertical slices
-| Slice | User-visible value | Dependencies | Acceptance criteria | Test |
+Slices are cut along behaviors. Every `active` BH-### in the Behavior Spec lands in exactly one slice; anything left over is `planned` or an omission, and the Unassigned row says which.
+
+| Slice | User-visible value | Dependencies | Behaviors (BH-###) | Acceptance criteria |
 |---|---|---|---|---|
+
+- Behaviors not assigned to any slice, and why:
 
 ## Technical plan
 - Platform surface:

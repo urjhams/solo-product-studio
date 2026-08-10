@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-PHASES = ("intake", "product", "research", "design", "mvp", "review", "production", "final_planning")
+PHASES = ("intake", "product", "research", "design", "specify", "mvp", "review", "production", "final_planning")
 VALID_STATUSES = ("pending", "in_progress", "reviewing", "checkpointed", "approved", "blocked", "skipped")
 VERIFICATION_PASS = {"passed", "not_applicable"}
 
@@ -25,6 +25,7 @@ def new_state(project_id: str = "product", mode: str = "custom") -> dict[str, An
         "session": {"status": "intake", "current_phase": "intake", "current_gate": "goal-and-house-rules", "next_action": "ask-intake-question", "questions": [], "unanswered_questions": [], "iteration_count": 0, "approval_status": "pending", "last_checkpoint": None, "updated_at": timestamp},
         "phases": {phase: {"status": "in_progress" if phase == "intake" else "pending", "done_bar": [], "result": None} for phase in PHASES},
         "reviews": [],
+        "specify": {"behavior_spec": "", "mirror": "", "behaviors": 0, "open_ambiguities": 0, "validated": False},
         "final_planning": {"status": "pending", "source_artifacts": [], "implementation_brief": "", "context_sources": [], "constraints": [], "verification": {"do_not_finish_until": [], "evidence": [], "unresolved": []}, "output_format": {}, "reviewer": "", "review_iterations": 0, "approval_status": "pending", "source_fingerprint": ""},
         "capabilities": {}, "product": {}, "business": {}, "constraints": {}, "research": {}, "assumptions": [], "decisions": [], "design": {}, "mvp": {}, "production": {}, "github": {},
     }
@@ -82,6 +83,27 @@ def record_review(state: dict[str, Any], phase: str, reviewer: str, passed: bool
     return state
 
 
+def attach_behavior_spec(state: dict[str, Any], path: str, mirror: str, behaviors: int, open_ambiguities: int, validated: bool) -> dict[str, Any]:
+    state["specify"] = {"behavior_spec": path, "mirror": mirror, "behaviors": behaviors, "open_ambiguities": open_ambiguities, "validated": validated}
+    state["session"]["updated_at"] = now()
+    state["project"]["updated_at"] = state["session"]["updated_at"]
+    return state
+
+
+def _specify_ready(state: dict[str, Any]) -> tuple[bool, str]:
+    spec = state.get("specify", {})
+    if not spec.get("behavior_spec"):
+        return False, "behavior-spec-missing"
+    if not spec.get("behaviors"):
+        return False, "no-behaviors-defined"
+    if spec.get("open_ambiguities"):
+        return False, "ambiguities-open"
+    # scripts/validate_behavior_spec.py is the single authority on field, source, and mirror rules
+    if not spec.get("validated"):
+        return False, "behavior-spec-not-validated"
+    return True, "ready"
+
+
 def _final_planning_ready(state: dict[str, Any]) -> tuple[bool, str]:
     final = state["final_planning"]
     if not final["implementation_brief"]:
@@ -102,6 +124,18 @@ def checkpoint(state: dict[str, Any], phase: str) -> dict[str, Any]:
     phase_reviews = [review for review in state["reviews"] if review["phase"] == phase]
     independent_pass = any(review["independent"] and review["passed"] for review in phase_reviews)
     any_pass = any(review["passed"] for review in phase_reviews)
+    prototype = state["project"].get("mode") == "prototype"
+    if phase == "specify":
+        ready, reason = _specify_ready(state)
+        # ponytail: prototype validation is throwaway, an unclosed spec warns instead of blocking
+        if not ready and not prototype:
+            state["phases"][phase]["status"] = "blocked"
+            state["session"]["next_action"] = reason
+            state["session"]["approval_status"] = "blocked"
+            state["session"]["updated_at"] = now()
+            return state
+        if not ready:
+            state["phases"][phase]["result"] = f"prototype-warning: {reason}"
     if phase == "final_planning":
         ready, reason = _final_planning_ready(state)
         if not ready:
@@ -111,8 +145,16 @@ def checkpoint(state: dict[str, Any], phase: str) -> dict[str, Any]:
             state["session"]["approval_status"] = "blocked"
             state["session"]["updated_at"] = now()
             return state
+        specify_ready, specify_reason = _specify_ready(state)
+        if not specify_ready and not prototype:
+            state["final_planning"]["status"] = "blocked"
+            state["final_planning"]["approval_status"] = "blocked"
+            state["session"]["next_action"] = specify_reason
+            state["session"]["approval_status"] = "blocked"
+            state["session"]["updated_at"] = now()
+            return state
     # ponytail: prototype mode is throwaway validation, a passing self review clears its checkpoints
-    if state["project"].get("mode") == "prototype" and any_pass:
+    if prototype and any_pass:
         independent_pass = True
     if not independent_pass:
         state["phases"][phase]["status"] = "blocked" if any_pass else "reviewing"
@@ -157,11 +199,15 @@ def save(path: Path, state: dict[str, Any]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--state", type=Path, required=True)
-    parser.add_argument("command", choices=("init", "begin", "answer", "attach-brief", "review", "checkpoint"))
+    parser.add_argument("command", choices=("init", "begin", "answer", "attach-brief", "attach-spec", "review", "checkpoint"))
     parser.add_argument("value", nargs="?")
     parser.add_argument("--answer")
     parser.add_argument("--reviewer", default="self")
     parser.add_argument("--passed", action="store_true")
+    parser.add_argument("--mirror", default="docs/agent/BEHAVIORS.md")
+    parser.add_argument("--behaviors", type=int, default=0)
+    parser.add_argument("--open-ambiguities", type=int, default=0)
+    parser.add_argument("--validated", action="store_true")
     args = parser.parse_args()
     state = new_state(args.value or "product") if args.command == "init" else load(args.state)
     if args.command == "begin":
@@ -170,6 +216,8 @@ def main() -> int:
         record_answer(state, args.value or "question", args.answer or "")
     elif args.command == "attach-brief":
         attach_final_brief(state, args.value or "08-implementation-brief.md", [], [])
+    elif args.command == "attach-spec":
+        attach_behavior_spec(state, args.value or "behavior-spec.md", args.mirror, args.behaviors, args.open_ambiguities, args.validated)
     elif args.command == "review":
         record_review(state, args.value or state["session"]["current_phase"], args.reviewer, args.passed)
     elif args.command == "checkpoint":

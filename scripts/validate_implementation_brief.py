@@ -3,15 +3,41 @@
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 
 HEADINGS = ("## Context", "## Task", "## Constraints", "## Verification — do not finish until", "## Output Format", "## Handoff")
 VALID_STATUSES = {"passed", "unresolved", "blocked", "not_applicable"}
+BEHAVIOR_REF = re.compile(r"\bBH-[0-9]{3,}\b")
+CRITERIA_LABEL = "- Non-negotiable acceptance criteria:"
 
 
-def validate(path: Path) -> list[str]:
+def _acceptance_criteria(text: str) -> list[str]:
+    """Return the acceptance-criteria lines: the label line plus its indented continuations."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip().startswith(CRITERIA_LABEL):
+            collected = [line] if line.strip() != CRITERIA_LABEL else []
+            for continuation in lines[index + 1:]:
+                if not continuation.startswith((" ", "\t")) or not continuation.strip():
+                    break
+                collected.append(continuation)
+            return [item for item in collected if item.strip().lstrip("-").strip()]
+    return []
+
+
+def validate(path: Path, prototype: bool = False) -> list[str]:
     text = path.read_text()
     errors = [f"missing section: {heading}" for heading in HEADINGS if heading not in text]
+    if not prototype:
+        if "- Behavior spec path:" not in text:
+            errors.append("context must name a behavior spec path")
+        criteria = _acceptance_criteria(text)
+        if not criteria:
+            errors.append("acceptance criteria are empty")
+        for line in criteria:
+            if not BEHAVIOR_REF.search(line):
+                errors.append(f"acceptance criterion cites no BH-###: {line.strip()[:60]}")
     marker = "## Verification — do not finish until"
     for section in HEADINGS:
         if section in text:
@@ -38,8 +64,9 @@ def validate(path: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("brief", type=Path)
+    parser.add_argument("--prototype", action="store_true", help="Prototype mode: behavior citations are not required")
     args = parser.parse_args()
-    errors = validate(args.brief)
+    errors = validate(args.brief, args.prototype)
     if errors:
         print("\n".join(f"ERROR {error}" for error in errors))
         return 1

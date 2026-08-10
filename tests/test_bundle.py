@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
 sys.path.insert(0, str(ROOT / "scripts"))
-from workflow_runner import attach_final_brief, begin_phase, can_handoff, checkpoint, new_state, record_review  # noqa: E402
+from workflow_runner import attach_behavior_spec, attach_final_brief, begin_phase, can_handoff, checkpoint, new_state, record_review  # noqa: E402
 from workbench_adapter import detect, publish_local  # noqa: E402
 
 
@@ -108,6 +108,71 @@ class BundleTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, (skill + protocol).lower())
 
+    def test_specify_phase_is_documented_end_to_end(self):
+        skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
+        for phrase in ["Specify", "Behavior Spec", "BH-###", "AM-###", "ambiguity", "product-recheck", "docs/agent/BEHAVIORS.md"]:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, skill)
+        hardening = (ROOT / "skills/product-studio/references/spec-hardening.md").read_text().lower()
+        for klass in ["term", "boundary", "actor", "state", "timing", "failure", "identity", "quantity", "visibility", "reversibility"]:
+            with self.subTest(klass=klass):
+                self.assertIn(f"`{klass}`", hardening)
+        discovery = (ROOT / "skills/product-studio/references/behavior-discovery.md").read_text()
+        self.assertIn("Product scope", discovery)
+        self.assertIn("Behavior scope", discovery)
+        self.assertIn("## Specification", (ROOT / "skills/product-studio/references/done-bars.md").read_text())
+
+    def test_behavior_spec_format_marker_is_shared(self):
+        marker = "<!-- behavior-spec/v1 -->"
+        for name in ("templates/behavior-spec.md", "docs/examples/spec-hardening.md"):
+            with self.subTest(name=name):
+                self.assertIn(marker, (ROOT / name).read_text())
+
+    def test_behavior_spec_validator_accepts_the_example_and_rejects_open_ambiguities(self):
+        example = ROOT / "docs/examples/spec-hardening.md"
+        result = self.run_script("validate_behavior_spec.py", str(example))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        with tempfile.TemporaryDirectory() as directory:
+            broken = Path(directory) / "behavior-spec.md"
+            broken.write_text(example.read_text().replace("- Status: resolved -> D-007", "- Status: open"))
+            result = self.run_script("validate_behavior_spec.py", str(broken))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("still open", result.stdout)
+            result = self.run_script("validate_behavior_spec.py", str(broken), "--prototype")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            result = self.run_script("validate_behavior_spec.py", str(example), "--mirror", str(broken))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("mirror out of sync", result.stdout)
+
+    def test_implementation_brief_requires_behavior_citations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            brief = Path(directory) / "brief.md"
+            body = (
+                "## Context\n- Behavior spec path: docs/agent/BEHAVIORS.md\n"
+                "## Task\n- Objective: ship it\n"
+                "## Constraints\n- House rules: protect the core flow\n- Non-negotiable acceptance criteria:\n  - the core flow completes\n"
+                "## Verification — do not finish until\n- [x] tests pass — Evidence: tests/out.txt — Owner: implementation — Status: passed\n"
+                "## Output Format\n- Files: src/core\n## Handoff\n- First action: run tests\n"
+            )
+            brief.write_text(body)
+            result = self.run_script("validate_implementation_brief.py", str(brief))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("cites no BH-###", result.stdout)
+            brief.write_text(body.replace("- the core flow completes", "- BH-001 — the core flow completes"))
+            result = self.run_script("validate_implementation_brief.py", str(brief))
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_recheck_skill_is_public_and_reuses_shared_references(self):
+        recheck = (ROOT / "skills/product-recheck/SKILL.md").read_text()
+        self.assertTrue(recheck.startswith("---\nname: product-recheck\ndescription: "))
+        for phrase in [
+            "/product-recheck", "Continue", "Redirect", "Cut", "Stop",
+            "Orphan test", "Coverage gap", "Stale test", "retired",
+            "../product-studio/references/spec-hardening.md",
+        ]:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, recheck)
+
     def test_native_apple_track_prefers_xcodebuild_mcp_with_fallback(self):
         adapter = (ROOT / "skills/product-studio/adapters/xcodebuild-mcp/README.md").read_text().lower()
         for phrase in ["mcp__xcodebuildmcp__", "install", "xcodebuild", "fallback"]:
@@ -176,6 +241,7 @@ class BundleTests(unittest.TestCase):
 
     def test_final_planning_checkpoint_allows_verified_independent_handoff(self):
         state = new_state("demo")
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 6, 0, True)
         begin_phase(state, "final_planning")
         attach_final_brief(state, "08-implementation-brief.md", ["04-mvp-build-plan.md"], [{"check": "tests pass", "evidence": "tests/output.txt", "owner": "implementation", "status": "passed"}])
         record_review(state, "final_planning", "independent", True, [])
@@ -183,6 +249,41 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(state["final_planning"]["approval_status"], "approved")
         self.assertTrue(can_handoff(state))
         self.assertEqual(state["session"]["next_action"], "offer-completion-actions")
+
+    def test_specify_checkpoint_blocks_until_ambiguities_are_closed(self):
+        state = new_state("demo")
+        begin_phase(state, "specify")
+        record_review(state, "specify", "independent", True, [])
+        checkpoint(state, "specify")
+        self.assertEqual(state["session"]["next_action"], "behavior-spec-missing")
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 7, 2, True)
+        checkpoint(state, "specify")
+        self.assertEqual(state["session"]["next_action"], "ambiguities-open")
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 7, 0, False)
+        checkpoint(state, "specify")
+        self.assertEqual(state["session"]["next_action"], "behavior-spec-not-validated")
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 7, 0, True)
+        checkpoint(state, "specify")
+        self.assertEqual(state["phases"]["specify"]["status"], "checkpointed")
+        self.assertEqual(state["session"]["next_action"], "begin-mvp")
+
+    def test_prototype_mode_warns_instead_of_blocking_on_open_ambiguities(self):
+        state = new_state("demo", "prototype")
+        begin_phase(state, "specify")
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 4, 3, False)
+        record_review(state, "specify", "self", True, [])
+        checkpoint(state, "specify")
+        self.assertEqual(state["phases"]["specify"]["status"], "checkpointed")
+        self.assertIn("prototype-warning", state["phases"]["specify"]["result"])
+
+    def test_unspecified_behaviors_block_the_implementation_brief(self):
+        state = new_state("demo")
+        begin_phase(state, "final_planning")
+        attach_final_brief(state, "08-implementation-brief.md", ["04-mvp-build-plan.md"], [{"check": "tests pass", "evidence": "tests/output.txt", "owner": "implementation", "status": "passed"}])
+        record_review(state, "final_planning", "independent", True, [])
+        checkpoint(state, "final_planning")
+        self.assertEqual(state["session"]["next_action"], "behavior-spec-missing")
+        self.assertFalse(can_handoff(state))
 
     def test_workbench_detection_and_local_fallback(self):
         self.assertEqual(detect()["status"], "unavailable")
@@ -195,9 +296,9 @@ class BundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             payload = {
-                "context": {"goal": "Ship the core flow", "audience": "indie users", "stage": "MVP", "source_artifacts": ["04-mvp-build-plan.md"], "context_sources": ["/repo/src", "/repo/tests"], "repository": "/repo", "existing_tests": "/repo/tests", "design_references": "unavailable", "documentation": "/repo/docs", "previous_versions": "unavailable", "prior_review_findings": "unavailable"},
+                "context": {"goal": "Ship the core flow", "audience": "indie users", "stage": "MVP", "source_artifacts": ["04-mvp-build-plan.md"], "context_sources": ["/repo/src", "/repo/tests"], "repository": "/repo", "behavior_spec": ".product-studio/artifacts/behavior-spec.md", "existing_tests": "/repo/tests", "design_references": "unavailable", "documentation": "/repo/docs", "previous_versions": "unavailable", "prior_review_findings": "unavailable"},
                 "task": {"objective": "Implement the first vertical slice", "user_outcome": "Users complete the core flow", "in_scope": ["core flow", "error state"], "first_vertical_slice": "Create and complete an item"},
-                "constraints": {"house_rules": ["protect the core flow"], "scope_exclusions": ["billing"], "acceptance_criteria": ["core flow completes"], "technical": ["native iOS"]},
+                "constraints": {"house_rules": ["protect the core flow"], "scope_exclusions": ["billing"], "acceptance_criteria": ["BH-001 — core flow completes"], "technical": ["native iOS"]},
                 "verification": {"do_not_finish_until": [{"check": "Core flow test passes", "evidence": "tests/core", "status": "unresolved", "owner": "implementation"}], "evidence": [], "unresolved": ["real API quota"]},
                 "output_format": {"files": ["src/core"], "completion_evidence": ["test output"]},
                 "handoff": {"first_action": "Run the core test", "dependencies": ["repository"], "next_checkpoint": "after core flow"},

@@ -1,7 +1,7 @@
 {
   "name": "solo-product-studio",
   "version": "0.1.0",
-  "description": "An interactive product studio that turns ideas into validated product definitions, UX direction, MVP plans, production blueprints, and GitHub delivery plans.",
+  "description": "An interactive product studio that turns ideas into validated product definitions, UX direction, hardened behavior specs, MVP plans, production blueprints, and GitHub delivery plans.",
   "author": {"name": "Solo Product Studio contributors"},
   "license": "MIT",
   "keywords": ["product", "mvp", "ux", "startup", "saas", "indie", "github"],
@@ -9,10 +9,10 @@
   "interface": {
     "displayName": "Solo Product Studio",
     "shortDescription": "Turn product ideas into validated build plans",
-    "longDescription": "Run an adaptive QA session, choose an operating mode, and move from product idea through research, UX, MVP, review, production planning, and GitHub delivery.",
+    "longDescription": "Run an adaptive QA session, choose an operating mode, and move from product idea through research, UX, behavior specification, MVP, review, production planning, and GitHub delivery. Re-evaluate a project already under development with product-recheck.",
     "developerName": "Solo Product Studio",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
-    "defaultPrompt": ["Use product-studio to help me build a product."]
+    "defaultPrompt": ["Use product-studio to help me build a product.", "Use product-recheck to re-evaluate this project."]
   }
 }

@@ -1,3 +1,7 @@
 # Workflow
 
 The lifecycle is QA-first and phase-oriented: goal intake → house rules → stage/mode recommendation → user confirmation → autonomous phase execution → done-bar review/repair loop → phase checkpoint → next phase. Stage and mode remain independent. Prototype, Hackathon, Indie, SaaS, Startup, and Production paths optimize different MVP and planning decisions. Prototype mode short-circuits the lifecycle: quick validate → one mocked flow → clickable prototype → verdict, with its own done bar and a single core-logic test. The agent asks focused questions at consequential boundaries, not after every intermediate artifact.
+
+End to end the shape is **Discover → Specify → Red → Green → Refactor**. Discover is intake, product, research, and design. Specify turns the Design Contract into a Behavior Spec — `BH-###` behaviors with Given/When/Then and observable signals — and then attacks that spec for ambiguity, recording each finding as an `AM-###` with two readings, the user-visible difference between them, and the decision needed. An ambiguity left open blocks the Implementation Brief. Red, Green, and Refactor belong to the implementing agent, which reads the Behavior Spec and names the `BH-###` in every test it writes.
+
+`/product-recheck` re-enters the loop mid-development: it reconstructs the product from code, diffs that against intent, behaviors, and tests, and returns a Continue / Redirect / Cut / Stop verdict with behavior and test deltas.

@@ -57,12 +57,20 @@ phases:
   product: {{status: pending, done_bar: [target user defined, wedge narrow, assumptions recorded]}}
   research: {{status: pending, done_bar: [evidence cited or research plan created, uncertainty labeled]}}
   design: {{status: pending, done_bar: [promise, hero moment, flow, scope, three principles defined]}}
+  specify: {{status: pending, done_bar: [behaviors cover every in-scope capability, every behavior has an observable and a source, zero open ambiguities, mirror in sync]}}
   mvp: {{status: pending, done_bar: [core flow executable, mocks explicit, cuts explicit, demo defined]}}
   review: {{status: pending, done_bar: [independent findings recorded, recommendation supported]}}
   production: {{status: pending, done_bar: [boundaries, migration, risks, release criteria defined]}}
   final_planning: {{status: pending, done_bar: [context complete, constraints explicit, verification stopping conditions defined, output format defined, independent review passed]}}
 
 reviews: []
+
+specify:
+  behavior_spec: ""
+  mirror: docs/agent/BEHAVIORS.md
+  behaviors: 0
+  open_ambiguities: 0
+  validated: false
 
 final_planning:
   status: pending

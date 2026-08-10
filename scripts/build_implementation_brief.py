@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 VALID_STATUSES = {"passed", "unresolved", "blocked", "not_applicable"}
+BEHAVIOR_REF = re.compile(r"\bBH-[0-9]{3,}\b")
 
 
 def validate_input(data: dict[str, Any]) -> list[str]:
@@ -26,6 +28,11 @@ def validate_input(data: dict[str, Any]) -> list[str]:
     for field in ("house_rules", "scope_exclusions", "acceptance_criteria"):
         if not data["constraints"].get(field):
             errors.append(f"constraints.{field} must be present; use [] when none apply")
+    if not context.get("behavior_spec"):
+        errors.append("context.behavior_spec must name the Behavior Spec; use 'unavailable' in Prototype mode")
+    for index, criterion in enumerate(data["constraints"].get("acceptance_criteria") or []):
+        if not BEHAVIOR_REF.search(str(criterion)):
+            errors.append(f"constraints.acceptance_criteria[{index}] must cite the BH-### it enforces")
     checks = data["verification"].get("do_not_finish_until", [])
     if not checks:
         errors.append("verification.do_not_finish_until must contain at least one check")
@@ -46,12 +53,13 @@ def validate_input(data: dict[str, Any]) -> list[str]:
     return errors
 
 
-def bullets(values: Any) -> str:
+def bullets(values: Any, indent: str = "") -> str:
     if isinstance(values, dict):
         values = [f"{key}: {value}" for key, value in values.items()]
     if not values:
-        return "- None recorded"
-    return "\n".join(f"- {value}" for value in values)
+        return f"{indent}- None recorded" if indent else "- None recorded"
+    lines = "\n".join(f"{indent}- {value}" for value in values)
+    return f"\n{lines}" if indent else lines
 
 
 def build(data: dict[str, Any]) -> str:
@@ -77,6 +85,7 @@ def build(data: dict[str, Any]) -> str:
 - Current stage: {context['stage']}
 - Operating mode and path: {context.get('mode_path', 'Not recorded')}
 - Repository and relevant directories: {context.get('repository', 'Not recorded')}
+- Behavior spec path: {context.get('behavior_spec', 'unavailable')}
 - Approved source artifacts: {', '.join(context['source_artifacts'])}
 - Context sources: {', '.join(context['context_sources'])}
 - Existing tests: {context['existing_tests']}
@@ -102,7 +111,7 @@ def build(data: dict[str, Any]) -> str:
 - Required conventions: {bullets(constraints.get('conventions', []))}
 - Mock/real integration boundaries: {bullets(constraints.get('integration_boundaries', []))}
 - Approval boundaries: {bullets(constraints.get('approval_boundaries', []))}
-- Non-negotiable acceptance criteria: {bullets(constraints['acceptance_criteria'])}
+- Non-negotiable acceptance criteria:{bullets(constraints['acceptance_criteria'], indent='  ')}
 
 ## Verification — do not finish until
 {chr(10).join(check_lines)}

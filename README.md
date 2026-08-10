@@ -2,7 +2,7 @@
 
 Solo Product Studio is a portable Agent Skill for turning a product idea or existing product into a validated direction, UX contract, MVP build plan, MVP review, production blueprint, or GitHub delivery plan.
 
-It works as a single public entry skill in Codex, Claude Code, OpenCode, and other runtimes that support directory-based `SKILL.md` skills. Internal agents and capabilities are bundled implementation playbooks; users only need to know `product-studio`.
+It works in Codex, Claude Code, OpenCode, and other runtimes that support directory-based `SKILL.md` skills. Internal agents and capabilities are bundled implementation playbooks; users only need to know two entry points — `product-studio` to go from an idea to a hardened plan, and `product-recheck` to re-evaluate a project already under development.
 
 ## The user experience
 
@@ -32,6 +32,43 @@ The default interaction policy is now phase-oriented: after you confirm the goal
 
 Questions use numbered choices for categorical decisions and always allow a custom answer.
 
+## Discover → Specify → Red → Green → Refactor
+
+Test-driven development only helps if the tests encode the right idea. A suite written over a misread requirement is green and proves nothing, so there is a phase between the design work and the build plan whose whole job is catching the misreading.
+
+**Specify** does two things. First it discovers behaviors — for every in-scope capability it walks the happy path, the precondition failures, the boundaries, concurrency, partial failure, the zero/one/many cases, permission denial, and reversal, writing each surviving branch as a `BH-###` with Given/When/Then and an observable signal. Product scope and behavior scope are kept separate: cutting product scope removes capabilities, cutting behavior scope removes correctness.
+
+Then it attacks its own specification. Every requirement sentence is swept against ten ambiguity classes — term, boundary, actor, state, timing, failure, identity, quantity, visibility, reversibility — and each finding is recorded with two reasonable readings, the concrete case where a user sees a different result under each, the decision needed, and a recommendation:
+
+```text
+AM-003 · boundary · "Users can cancel an order before shipment."
+  Reading A: shipment = carrier scan. Cancel window closes late.
+  Reading B: shipment = warehouse marks packed. Cancel window closes early.
+  User-visible difference: a customer cancelling 20 min after packing succeeds
+    under A; under B they are told the order already shipped.
+  Decision needed: which state closes the cancel window.
+  Recommendation: B — the warehouse can actually enforce it. Confidence: medium
+  → resolved as D-007, produces BH-014 and BH-015
+```
+
+Every ambiguity ends as `resolved -> D-###`, `deferred -> A-###` with a revisit trigger, or `out_of_scope`. One left open blocks the Implementation Brief. Downstream, MVP slices are cut along behaviors, every acceptance criterion cites the `BH-###` it enforces, and every test the implementing agent writes names the behavior it proves — which is what makes an orphan test findable later.
+
+Prototype mode runs a ten-minute short form instead. It is relaxed, not skipped: a prototype that validates the wrong reading of the idea has answered nothing.
+
+## Re-evaluating a project already under way
+
+```text
+/product-recheck
+```
+
+Use this when you are mid-build and want to know whether what you are building is still what you meant to build. It reconstructs the product from the code rather than the documentation — inferred core idea, feature inventory, flows, entities, test inventory — shows you that summary first and asks whether it matches your vision, then reports three drifts:
+
+- **intent versus code** — does the product do what it set out to do
+- **behaviors versus code** — a `BH-###` with no implementation
+- **behaviors versus tests** — a behavior with no test is a coverage gap, a test with no behavior is an orphan that likely encodes a misread requirement, a behavior edited after its test is stale
+
+It then asks the decisions that matter, highest impact first, each with a recommended pick, re-runs spec hardening with the code as evidence, and returns a Continue / Redirect / Cut / Stop verdict alongside an explicit behavior delta and test delta.
+
 ## Mode-aware paths
 
 The skill separates product stage from operating mode.
@@ -47,11 +84,12 @@ The skill separates product stage from operating mode.
 The skill may recommend different paths:
 
 ```text
-Rough idea → Product Lens → Evidence Scout → UX Contract → MVP Forge
+Rough idea → Product Lens → Evidence Scout → UX Contract → Spec Cartographer → MVP Forge
 Existing MVP → MVP Auditor → Product Synthesizer → Production Blueprint
 SaaS idea → Buyer/user QA → workflow validation → SaaS MVP → production planning
 Hackathon idea → hero moment → complete core flow → demo-ready MVP
 Unvalidated idea → quick validate → one mocked flow → clickable prototype → verdict
+Mid-development → Reality Check → Drift Report → Spec Hardening → Verdict
 ```
 
 Prototype and Hackathon are both fast and mock-first but prove different things: Prototype answers "does the idea hold?" for you, Hackathon answers "does this impress an audience?" at an event. Prototype prefers the fastest track over eventual product fit — Expo over native iOS unless the native capability is the thing being validated — and it is temporary: once the idea is judged, mode selection runs again.
@@ -149,7 +187,9 @@ When the user approves a workflow, the skill stores state in the active reposito
 └── github/
 ```
 
-State contains the selected mode, stage, constraints, capabilities, assumptions, decisions, approvals, and next gate. Artifacts are Markdown and include Product Opportunity Brief, Evidence Pack, Design Contract, MVP Build Plan, MVP Review Report, Updated Product Definition, Production Build Blueprint, GitHub Delivery Plan, and the final Implementation Brief.
+State contains the selected mode, stage, constraints, capabilities, assumptions, decisions, approvals, and next gate. Artifacts are Markdown and include Product Opportunity Brief, Evidence Pack, Design Contract, Behavior Spec, MVP Build Plan, MVP Review Report, Updated Product Definition, Production Build Blueprint, GitHub Delivery Plan, the final Implementation Brief, and any Re-evaluation Verdict.
+
+The Behavior Spec is the one artifact that also lives outside `.product-studio/`. It is mirrored byte-for-byte to `docs/agent/BEHAVIORS.md` so it is tracked in git beside the code, and so an implementing agent, a reviewer, or CI can read it without knowing this skill exists. `scripts/validate_behavior_spec.py <canonical> --mirror docs/agent/BEHAVIORS.md` keeps the two honest.
 
 Project state also stores the goal, protected outcome, house rules, phase done bars, review iterations, and current checkpoint. These rules keep autonomous work aligned while allowing the agent to choose the internal procedure.
 

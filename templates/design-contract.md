@@ -37,4 +37,4 @@ visual_brief:
 - Motion plan:
 - Accessibility requirements:
 - Platform mapping (native / cross-platform / web):
-- Acceptance criteria:
+- Acceptance criteria: (design-level only; the Behavior Spec produced in the Specify phase supersedes these for implementation)
