@@ -17,7 +17,10 @@ Steps:
 3. Judge along two axes:
    - **Standards** — does the code follow this repo's documented conventions and the platform's
      settled practice?
-   - **Spec** — does the change do what the task/issue asked, no more, no less?
+   - **Spec** — does the change do what the task/issue asked, no more, no less? Where
+     `docs/agent/BEHAVIORS.md` covers the diff, judge against the `BH-###` entries rather than the
+     task prose, and cite the id in the finding. Flag a test that names no behavior and asserts
+     something no behavior asks for.
 4. For each finding: `path:line — severity (BLOCKER/MAJOR/MINOR) — problem — concrete fix.`
    No praise, no restating the diff, no formatting nits unless they change meaning.
 5. End with a verdict line: **APPROVE** (no blocking findings) or **REQUEST-CHANGES** (list the

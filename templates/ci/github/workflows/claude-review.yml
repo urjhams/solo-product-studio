@@ -26,6 +26,9 @@ jobs:
                (AGENTS.md, docs/agent/, and any standards doc the touched area names)?
                Read them; do not review from memory.
             2. Spec — does it do what its title/body/linked issue says, no more, no less?
+               If docs/agent/BEHAVIORS.md covers the diff, judge against its BH-### entries
+               rather than the PR prose and cite the id. Flag any test that names no
+               behavior and asserts something no behavior asks for.
 
             Product source lives in: {{SOURCE_DIRS}}. Weight findings there heaviest;
             docs- and config-only changes get a light pass.

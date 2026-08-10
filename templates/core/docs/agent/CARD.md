@@ -7,28 +7,36 @@ You are in **{{PROJECT_NAME}}**. Full rules: root `AGENTS.md` (or `CLAUDE.md`). 
 `docs/agent/STATE.md` (where we are).
 
 **Open on trigger only:** debugging or something feels non-obvious → `docs/agent/GOTCHAS.md` ·
-opening a PR or delegating → `docs/agent/RUNBOOKS.md`.
+writing or changing behavior → `docs/agent/BEHAVIORS.md` · opening a PR or delegating →
+`docs/agent/RUNBOOKS.md`.
 **Never auto-read:** `STATE-archive.md`.
 
 ## The loop
 
 1. **Branch first.** Never commit on the default branch.
-2. **Plan.** State assumptions and success criteria before writing code. Architectural decision
-   (new dependency, new boundary, rejecting a plausible alternative) → record it (ADR or
-   equivalent) in the same task, never as a follow-up.
-3. **Tests first.** Enumerate cases, write them failing, then implement until green.
-   Build: `{{BUILD_CMD}}` · Test: `{{TEST_CMD}}`
-4. **Commit atomically** — smallest unit that builds with its tests passing. Several commits per
+2. **Specify.** Behaviors before tests. If `docs/agent/BEHAVIORS.md` has a `BH-###` for this work
+   it is authoritative — read it, do not re-derive. Otherwise write the behaviors you are about to
+   test, one Given/When/Then each, and sweep them for ambiguity (`RUNBOOKS.md#specify`). **An
+   unresolved ambiguity is a question, not a guess** — a green suite over a misread requirement
+   proves nothing. Architectural decision (new dependency, new boundary, rejecting a plausible
+   alternative) → record it (ADR or equivalent) in the same task, never as a follow-up.
+3. **Red.** One failing test per behavior, and each test names the behavior it proves — `BH-###`
+   in the test name or a comment directly above it. Test: `{{TEST_CMD}}`
+4. **Green.** Smallest change that passes. Build: `{{BUILD_CMD}}`
+5. **Refactor.** Tests stay green. No new behavior here — that needs a new `BH-###` and its own
+   red step.
+6. **Commit atomically** — smallest unit that builds with its tests passing. Several commits per
    task, never one giant one. Tests go in the same commit as the code they test.
-5. **Sync docs in the same commit** — contracts, maps, and specs the diff touches.
-6. **Task-completing commit updates `STATE.md`** — ONE compact ≤2-line bullet under
+7. **Sync docs in the same commit** — contracts, maps, and `BEHAVIORS.md` when the diff changes
+   what the product does.
+8. **Task-completing commit updates `STATE.md`** — ONE compact ≤2-line bullet under
    "Current focus", newest first; fold the oldest into `STATE-archive.md` at the cap.
-7. **Gate — only if the diff touches product source** (`{{SOURCE_DIRS}}`): spawn `task-evaluator`
+9. **Gate — only if the diff touches product source** (`{{SOURCE_DIRS}}`): spawn `task-evaluator`
    (the author must not grade its own work). SHIP → PR; FIX-FIRST → fix, re-run **once**, then
    escalate. **Docs/tooling-only diff → light lane: do NOT spawn the evaluator.**
-8. **Finishing a task = opening its PR** to `{{DEFAULT_BRANCH}}` — automatic, not on request.
-9. **Then the review:** {{REVIEW_LANE}} (Full flow: `RUNBOOKS.md#pr-flow`.)
-10. **Bounded loops:** one evaluator re-run, one reviewer re-review. Then stop and escalate.
+10. **Finishing a task = opening its PR** to `{{DEFAULT_BRANCH}}` — automatic, not on request.
+11. **Then the review:** {{REVIEW_LANE}} (Full flow: `RUNBOOKS.md#pr-flow`.)
+12. **Bounded loops:** one evaluator re-run, one reviewer re-review. Then stop and escalate.
 
 ## Delegation
 

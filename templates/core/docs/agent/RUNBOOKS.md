@@ -5,6 +5,70 @@ section when you hit its trigger.
 
 ---
 
+## Specify
+
+Runs before Red. A test suite over a misread requirement is green and proves nothing, so the
+misreading gets caught here.
+
+`docs/agent/BEHAVIORS.md` is authoritative when it already covers the work — read it, do not
+re-derive. When it does not, write the behaviors you are about to test into that file first.
+
+### 1. Behaviors
+
+One `BH-###` per branch of behavior, format at the top of `BEHAVIORS.md`. For the capability you are
+touching, walk these eight and write down what happens; a branch that genuinely has no behavior is a
+valid answer once written down:
+
+happy path · each precondition failure · each boundary · two actors arriving together · partial
+failure · the zero/one/many cases · permission denied · undo, retry, and repeat.
+
+Three rules decide whether a behavior is usable. **Given/When/Then must be constructible** — a test
+author can build the state and trigger the action without asking a question. **Observable names
+signals, not feelings** — field values, rows, response codes, on-screen copy. **Source cites the
+ambiguity or decision it came from** — a behavior with no source is a guess.
+
+Pick the cheapest level that can actually fail when the behavior is wrong. A `unit` test standing in
+for an `integration` behavior is tautological: it cannot fail when the real thing breaks.
+
+### 2. Ambiguity sweep
+
+Assume the specification is incomplete. Take each requirement sentence — from the issue, the task
+statement, or the user's own words — and pass it against all ten classes, then stop. You are looking
+for sentences two competent implementers would build differently, not for missing features.
+
+| Class | The question |
+|---|---|
+| `term` | Does a noun or verb here have more than one referent? |
+| `boundary` | When exactly does the state change — before, at, or after? |
+| `actor` | Who may do this, on whose behalf, and who may not? |
+| `state` | Which states exist, and which transitions are legal? |
+| `timing` | Simultaneous requests, races, retries, reordering, repeats? |
+| `failure` | What if half succeeds? Roll back or compensate? Sync or async? |
+| `identity` | What makes two of these the same? Persisted or derived? |
+| `quantity` | How many, how fast, how large? Zero, one, many? |
+| `visibility` | Who sees this, when, and what exactly are they told? |
+| `reversibility` | Money, email, external calls — can it be undone, and by whom? |
+
+Each finding becomes one `AM-###` with two reasonable readings, **the concrete case where a user sees
+a different result under each**, the decision needed, and your recommendation with its confidence.
+If you cannot name a user-visible difference, the ambiguity does not matter — drop it. If reading B
+is a strawman, this is not an ambiguity, it is you stating a preference.
+
+### 3. Close every ambiguity
+
+`resolved` (a decision was made — record the ADR), `deferred` (not needed yet — record the assumption
+and a `Revisit when:` trigger naming an observable signal, not a date), or `out_of_scope` (real case,
+product will not handle it; write the behavior that refuses it so the refusal is deliberate).
+
+**`open` is not a resting place.** Resolve what the repo's existing decisions already answer, then
+ask the user the rest — one at a time, highest impact first, with numbered readings and your
+recommended pick. An ambiguity the user declines to settle becomes `deferred`, never `open`.
+
+Resolving one ambiguity routinely exposes another. Re-read the behaviors with the resolutions
+applied and sweep again; stop when a pass finds nothing new.
+
+---
+
 ## PR flow
 
 Two independent gates guard a PR; a third is on-demand.

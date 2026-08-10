@@ -16,13 +16,23 @@ Steps:
 1. Read `docs/agent/GOTCHAS.md` first (build/test recipes, known traps). **Not `STATE.md`** —
    the project's rolling log is not evidence.
 
-2. **Re-derive the acceptance criteria yourself** from the task statement. Diff your list against
-   the briefed done-criteria; anything the task implies but the brief missed gets added and
-   evaluated like the rest (call it out as added).
+2. **Get the acceptance criteria.** If `docs/agent/BEHAVIORS.md` exists and has `BH-###` entries
+   covering this diff, **it is authoritative — read it, do not re-derive.** Its `Then` and
+   `Observable` fields are the criteria. Otherwise re-derive the criteria yourself from the task
+   statement. Either way, diff your list against the briefed done-criteria; anything the task
+   implies but the brief missed gets added and evaluated like the rest (call it out as added).
 
-3. **Test-coverage judgment.** For each criterion, name the test(s) that prove it. Flag criteria
-   with no covering test, and tautological tests — ones that cannot fail if the behavior is
-   wrong (asserting mocks return what they were stubbed with, etc.).
+   A criterion whose behavior carries an ambiguity still at `Status: open` is not evaluable — say so
+   and return FIX-FIRST. The spec was handed over unfinished.
+
+3. **Test-coverage judgment.** For each criterion, name the test(s) that prove it. Report three
+   findings by name:
+   - **Coverage gap** — an `active` `BH-###`, or a criterion, with no covering test.
+   - **Orphan test** — a test in the diff naming no `BH-###` and asserting something no behavior
+     asks for. Say what idea it actually encodes; an orphan is where a misread requirement hides,
+     because it is green and looks like coverage.
+   - **Tautological test** — one that cannot fail if the behavior is wrong (asserting a mock returns
+     what it was stubbed with, a unit test standing in for an integration behavior).
 
 4. **Execute.** Build and run the affected suites yourself — do not take the diff's word for it:
    - Build: `{{BUILD_CMD}}`
@@ -30,7 +40,8 @@ Steps:
    A build failure is an automatic FIX-FIRST.
 
 5. Report: one line per criterion — **PASS / FAIL + evidence** (test name + result, build output
-   line). End with one final verdict line: **SHIP** (all criteria pass) or
+   line), prefixed with its `BH-###` where one exists. End with one final verdict line: **SHIP**
+   (all criteria pass) or
    **FIX-FIRST: <blocking criteria, most severe first>**. Read-only in the repo — no
    edits/commits/push. Keep under ~300 words.
 

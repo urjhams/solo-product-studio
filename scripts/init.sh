@@ -46,6 +46,7 @@ core/docs/agent/RUNBOOKS.md|docs/agent/RUNBOOKS.md
 core/docs/agent/STATE.md|docs/agent/STATE.md
 core/docs/agent/STATE-archive.md|docs/agent/STATE-archive.md
 core/docs/agent/GOTCHAS.md|docs/agent/GOTCHAS.md
+core/docs/agent/BEHAVIORS.md|docs/agent/BEHAVIORS.md
 core/scripts/agent/compact-state.py|scripts/agent/compact-state.py
 EOF
       ;;
@@ -142,13 +143,18 @@ check() {
   local tmp; tmp=$(mktemp -d)
   echo "self-check in $tmp"
   DEST="$tmp" MODULES="core,agents,claude-code,ci,ci-review" FORCE=0 install >/dev/null
-  local expected="AGENTS.md CLAUDE.md docs/agent/CARD.md docs/agent/RUNBOOKS.md docs/agent/STATE.md docs/agent/STATE-archive.md docs/agent/GOTCHAS.md scripts/agent/compact-state.py .claude/agents/task-evaluator.md .claude/agents/_platform-reviewer.template.md .claude/settings.json .claude/hooks/session-card.sh .claude/hooks/require-verdict.sh .claude/hooks/state-autocompact.sh .github/workflows/ci.yml .github/workflows/claude-review.yml"
+  local expected="AGENTS.md CLAUDE.md docs/agent/CARD.md docs/agent/RUNBOOKS.md docs/agent/STATE.md docs/agent/STATE-archive.md docs/agent/GOTCHAS.md docs/agent/BEHAVIORS.md scripts/agent/compact-state.py .claude/agents/task-evaluator.md .claude/agents/_platform-reviewer.template.md .claude/settings.json .claude/hooks/session-card.sh .claude/hooks/require-verdict.sh .claude/hooks/state-autocompact.sh .github/workflows/ci.yml .github/workflows/claude-review.yml"
   local fail=0
   for f in $expected; do
     [ -f "$tmp/$f" ] || { echo "MISSING: $f"; fail=1; }
   done
   [ -x "$tmp/.claude/hooks/session-card.sh" ] || { echo "NOT EXECUTABLE: session-card.sh"; fail=1; }
   bash -n "$tmp/.claude/hooks/require-verdict.sh" || { echo "SYNTAX ERROR: require-verdict.sh"; fail=1; }
+  # the behavior-spec format marker is a shared contract with the product-studio skill
+  grep -q '<!-- behavior-spec/v1 -->' "$tmp/docs/agent/BEHAVIORS.md" || { echo "MISSING MARKER: behavior-spec/v1"; fail=1; }
+  # a fresh BEHAVIORS.md must declare no active behaviors, or the coverage hook blocks every PR
+  local nactive; nactive=$(sed '/<!--/,/-->/d' "$tmp/docs/agent/BEHAVIORS.md" | grep -c '^- Status:[[:space:]]*active' || true)
+  [ "$nactive" = 0 ] || { echo "FRESH BEHAVIORS.md DECLARES $nactive ACTIVE BEHAVIORS: coverage hook would block every PR"; fail=1; }
   # compaction: 10 over-length bullets -> caps enforced, demoted bullets land in archive
   if command -v python3 >/dev/null 2>&1; then
     for i in 10 9 8 7 6 5 4 3 2 1; do
