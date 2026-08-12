@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -55,9 +56,44 @@ class BundleTests(unittest.TestCase):
             self.assertTrue((destination / "product-studio" / "SKILL.md").exists())
             self.assertTrue((destination / "product-studio" / "templates" / "mvp-build-plan.md").exists())
             self.assertTrue((destination / "product-studio" / "schemas" / "project.schema.json").exists())
+            for name in ("product-recheck", "workflow-init", "engineering-cycle"):
+                self.assertTrue((destination / name / "SKILL.md").exists(), name)
+            self.assertTrue((destination / "workflow-init" / "scripts" / "init.sh").exists())
+            self.assertTrue((destination / "engineering-cycle" / "references" / "review.md").exists())
+            # workflow-init and engineering-cycle are self-contained; packaging the
+            # shared planning resources beside them would add dirs they never name.
+            for name in ("workflow-init", "engineering-cycle"):
+                self.assertFalse((destination / name / "pattern-library").exists(), name)
+                self.assertFalse((destination / name / "schemas").exists(), name)
             result = self.run_script("install.py", "--target", "agents", "--destination", str(destination), "--uninstall")
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertFalse((destination / "product-studio").exists())
+            for name in ("product-studio", "product-recheck", "workflow-init", "engineering-cycle"):
+                self.assertFalse((destination / name).exists(), name)
+
+    def test_workflow_init_self_check_passes(self):
+        script = ROOT / "skills" / "workflow-init" / "scripts" / "init.sh"
+        result = subprocess.run(["bash", str(script), "--check"], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("CHECK OK", result.stdout)
+
+    def test_vendored_engineering_references_have_no_dangling_upstream_links(self):
+        # The packs these were vendored from linked to a sibling ../../references/
+        # directory their installer never fetched, so every such link was dead.
+        # Vendoring is only worth doing if none of them survived the adaptation.
+        references = ROOT / "skills" / "engineering-cycle" / "references"
+        offenders = [
+            str(path.relative_to(ROOT))
+            for path in sorted(references.rglob("*.md"))
+            if "../../references/" in path.read_text()
+        ]
+        self.assertEqual(offenders, [])
+
+    def test_engineering_cycle_routes_only_to_files_that_exist(self):
+        skill = ROOT / "skills" / "engineering-cycle" / "SKILL.md"
+        targets = sorted(set(re.findall(r"`(references/[\w/.-]+\.md)`", skill.read_text())))
+        self.assertTrue(targets, "engineering-cycle SKILL.md should route to its references")
+        missing = [t for t in targets if not (skill.parent / t).is_file()]
+        self.assertEqual(missing, [])
 
     def test_local_github_export(self):
         with tempfile.TemporaryDirectory() as directory:

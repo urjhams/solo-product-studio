@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
-"""Install the portable product-studio skills into a supported host directory."""
+"""Install the portable Solo Product Studio skills into a supported host directory."""
 from __future__ import annotations
 import argparse
 import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILLS = ("product-studio", "product-recheck")
 RESOURCE_DIRS = ("schemas", "templates", "pattern-library", "scripts")
+# Resources are per-skill: the two planning skills read the shared repo-root dirs,
+# while workflow-init and engineering-cycle are self-contained. workflow-init ships
+# its own scripts/ and templates/ (the scaffold script and what it copies), and
+# engineering-cycle owns its references/ outright — packaging the shared dirs beside
+# either one would add directories their SKILL.md never names.
+SKILLS = {
+    "product-studio": RESOURCE_DIRS,
+    "product-recheck": RESOURCE_DIRS,
+    "workflow-init": (),
+    "engineering-cycle": (),
+}
 TARGETS = {
     "codex": Path.home() / ".codex" / "skills",
     "claude-code": Path.home() / ".claude" / "skills",
@@ -37,7 +47,7 @@ def main() -> int:
         if installed.exists() or installed.is_symlink():
             raise SystemExit(f"Refusing to overwrite existing {installed}; uninstall it first")
     destination.mkdir(parents=True, exist_ok=True)
-    for name in SKILLS:
+    for name, resources in SKILLS.items():
         source = ROOT / "skills" / name
         installed = destination / name
         if args.symlink:
@@ -48,8 +58,9 @@ def main() -> int:
         # each skill so project-local and global installs are self-contained. A
         # symlink install links them instead of copying, so they cannot drift from
         # the repository root. product-recheck reaches product-studio's references
-        # through ../product-studio/, which resolves the same in both layouts.
-        for resource in RESOURCE_DIRS:
+        # through ../product-studio/, which resolves the same in both layouts, and
+        # workflow-init reaches engineering-cycle's through ../engineering-cycle/.
+        for resource in resources:
             target = source / resource if args.symlink else installed / resource
             if target.exists() or target.is_symlink():
                 continue

@@ -34,6 +34,32 @@ REQUIRED = [
     "schemas/behavior-spec.schema.json",
     "scripts/validate_behavior_spec.py",
     "docs/examples/spec-hardening.md",
+    "skills/workflow-init/SKILL.md",
+    "skills/workflow-init/scripts/init.sh",
+    "skills/workflow-init/templates/core/docs/agent/CARD.md",
+    "skills/workflow-init/templates/core/docs/agent/BEHAVIORS.md",
+    "skills/workflow-init/templates/agents/task-evaluator.md",
+    "skills/engineering-cycle/SKILL.md",
+]
+
+# The engineering references are vendored from external skill packs so that a
+# scaffolded repository stays self-contained. Every one is reachable from
+# engineering-cycle's gate table; a missing file there is a dangling pointer of
+# exactly the kind this bundle exists to avoid.
+ENGINEERING_REFERENCES = (
+    "planning", "build-loop", "api", "sources", "doubt", "review", "security",
+    "performance", "browser-verification", "observability", "adr", "release",
+    "ci", "ship", "migration",
+)
+ENGINEERING_CHECKLISTS = (
+    "definition-of-done", "security-checklist", "performance-checklist",
+    "accessibility-checklist", "observability-checklist", "testing-patterns",
+    "orchestration-patterns",
+)
+REQUIRED += [
+    f"skills/engineering-cycle/references/{name}.md" for name in ENGINEERING_REFERENCES
+] + [
+    f"skills/engineering-cycle/references/checklists/{name}.md" for name in ENGINEERING_CHECKLISTS
 ]
 
 def main() -> int:
@@ -53,12 +79,31 @@ def main() -> int:
         errors.append("product-recheck SKILL.md must have portable name/description frontmatter")
     if "/product-recheck" not in recheck_text:
         errors.append("product-recheck SKILL.md is missing its public entry")
+    for name in ("workflow-init", "engineering-cycle"):
+        path = root / "skills" / name / "SKILL.md"
+        skill_text = path.read_text() if path.is_file() else ""
+        if not re.search(rf"^---\nname: {name}\ndescription: .+\n---", skill_text, re.MULTILINE):
+            errors.append(f"{name} SKILL.md must have portable name/description frontmatter")
     # the behavior-spec format marker is a shared contract with the workflow-init skill
     marker = "<!-- behavior-spec/v1 -->"
-    for name in ("templates/behavior-spec.md", "docs/examples/spec-hardening.md"):
+    for name in ("templates/behavior-spec.md", "docs/examples/spec-hardening.md",
+                 "skills/workflow-init/templates/core/docs/agent/BEHAVIORS.md"):
         path = root / name
         if path.is_file() and marker not in path.read_text():
             errors.append(f"{name} is missing the {marker} format marker")
+    # The upstream skill packs these references came from linked to a sibling
+    # ../../references/ directory that their installer never fetched, so every
+    # such link was dead on arrival. Vendoring only helps if none survive.
+    engineering = root / "skills/engineering-cycle"
+    for path in sorted(engineering.rglob("*.md")) if engineering.is_dir() else []:
+        if "../../references/" in path.read_text():
+            errors.append(f"{path.relative_to(root)} has an unresolved upstream ../../references/ link")
+    # Every reference engineering-cycle routes to must exist, or the gate table lies.
+    entry = engineering / "SKILL.md"
+    if entry.is_file():
+        for target in sorted(set(re.findall(r"`(references/[\w/.-]+\.md)`", entry.read_text()))):
+            if not (engineering / target).is_file():
+                errors.append(f"engineering-cycle SKILL.md routes to missing {target}")
     for path in (root / "schemas").glob("*.json"):
         try:
             json.loads(path.read_text())
