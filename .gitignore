@@ -11,3 +11,5 @@ skills/product-recheck/templates
 skills/product-recheck/schemas
 skills/product-recheck/pattern-library
 skills/product-recheck/scripts
+
+.DS_Store
