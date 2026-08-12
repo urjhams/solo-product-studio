@@ -77,6 +77,23 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("CHECK OK", result.stdout)
 
+    def test_intake_extracts_intent_rather_than_collecting_answers(self):
+        # Everything downstream — mode, platform, behaviors, the whole Behavior Spec —
+        # inherits a misread goal, and no amount of ambiguity sweeping later catches one
+        # that was wrong in the first sentence. These are the mechanics that make the
+        # difference checkable rather than a matter of tone.
+        # normalize wrapping — these are prose files, so a phrase may straddle a line break
+        flat = lambda path: " ".join((ROOT / path).read_text().lower().split())
+        skill = flat("skills/product-studio/SKILL.md")
+        protocol = flat("skills/product-studio/references/qa-session.md")
+        for phrase in ["hypothesis", "confidence", "one question at a time", "out of scope"]:
+            self.assertIn(phrase, skill, phrase)
+        for phrase in ["hypothesis:", "confidence:", "guess:", "out of scope",
+                       "whatever you think", "justify this to anyone",
+                       # the stop condition must be a test someone can apply, not a feeling
+                       "next three questions"]:
+            self.assertIn(phrase, protocol, phrase)
+
     def test_engineering_module_refuses_to_write_anything_without_its_sibling_skill(self):
         # workflow-init copied out on its own has no engineering-cycle beside it. The
         # copy must fail before touching the project, not halfway through the core

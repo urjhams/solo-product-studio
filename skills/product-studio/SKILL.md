@@ -15,11 +15,12 @@ The lifecycle is **Discover → Specify → Red → Green → Refactor**. Discov
 
 1. Read `.product-studio/project.yaml` if it exists. If it exists, offer resume options and do not repeat completed intake.
 2. Otherwise ask: **“What do you want to build or improve?”**
-3. Extract answers from the user's free-form response before asking anything else.
-4. Ask one question at a time. Use 3–7 high-value questions, with numbered choices for categorical decisions and an `Other` path for free text.
-5. Detect both the product stage and operating mode. They are separate: stage describes where the work is; mode describes how the work should be optimized.
-6. Show an intake summary, goal, house rules, recommended path, and phase done bars; wait for explicit confirmation before research or planning.
-7. Default to phase checkpoints, not approval after every artifact. Return to the user at intake, consequential transitions, phase completion, external publication, or when blocked.
+3. Extract answers from the user's free-form response before asking anything else, then state a one-sentence hypothesis of what they want with a confidence number. Below ~70%, say what is missing.
+4. Ask one question at a time, each carrying your guess at the answer. Use 3–7 high-value questions, with numbered choices for categorical decisions and an `Other` path for free text. Stop when you can predict the user's reaction to the next three questions you would ask. When an answer sounds like it is signalling what a Serious Product Person would say, ask what they would want if they did not have to justify it to anyone. Full protocol: `references/qa-session.md`.
+5. Restate intent in the user's own words in six lines — outcome, user, why now, success, constraint, and out of scope. `Out of scope` is not optional: without it every later cut reads as a broken promise. Require an explicit yes; "whatever you think", "sounds good", "sure, let's go", and silence are deferrals, not agreement.
+6. Detect both the product stage and operating mode. They are separate: stage describes where the work is; mode describes how the work should be optimized.
+7. Show an intake summary, goal, house rules, recommended path, and phase done bars; wait for explicit confirmation before research or planning.
+8. Default to phase checkpoints, not approval after every artifact. Return to the user at intake, consequential transitions, phase completion, external publication, or when blocked.
 
 ## Goal and house rules
 
