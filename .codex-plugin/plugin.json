@@ -1,18 +1,23 @@
 {
   "name": "solo-product-studio",
-  "version": "0.1.0",
-  "description": "An interactive product studio that turns ideas into validated product definitions, UX direction, hardened behavior specs, MVP plans, production blueprints, and GitHub delivery plans.",
+  "version": "0.2.0",
+  "description": "The full path from a product idea to production: validated direction, hardened behavior spec, MVP plan, a scaffolded repository with enforced gates, and a production-grade build, review, and ship cycle.",
   "author": {"name": "Solo Product Studio contributors"},
   "license": "MIT",
-  "keywords": ["product", "mvp", "ux", "startup", "saas", "indie", "github"],
+  "keywords": ["product", "mvp", "ux", "startup", "saas", "indie", "workflow", "spec", "review", "shipping", "github"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Solo Product Studio",
-    "shortDescription": "Turn product ideas into validated build plans",
-    "longDescription": "Run an adaptive QA session, choose an operating mode, and move from product idea through research, UX, behavior specification, MVP, review, production planning, and GitHub delivery. Re-evaluate a project already under development with product-recheck.",
+    "shortDescription": "Product idea to production, one lifecycle",
+    "longDescription": "Four skills, one lifecycle. product-studio runs an adaptive QA session and moves an idea through research, UX, behavior specification, MVP planning, and delivery. workflow-init scaffolds the repository that implements it — memory bank, runbooks, acceptance and review gates, hooks, CI. engineering-cycle supplies the depth behind each gate and owns everything after the PR merges: review, security, performance, observability, release, and shipping. product-recheck re-evaluates a project already under development.",
     "developerName": "Solo Product Studio",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
-    "defaultPrompt": ["Use product-studio to help me build a product.", "Use product-recheck to re-evaluate this project."]
+    "defaultPrompt": [
+      "Use product-studio to help me build a product.",
+      "Use workflow-init to set up the agent workflow in this repo.",
+      "Use engineering-cycle to implement and ship this.",
+      "Use product-recheck to re-evaluate this project."
+    ]
   }
 }

@@ -12,6 +12,7 @@
 - Approved source artifacts:
 - Existing tests, design references, and documentation:
 - Prior decisions and known risks:
+- Engineering references that apply: (optional — name the two or three from `engineering-cycle`, or `docs/engineering/` once scaffolded, rather than leaving the implementer to read all of them)
 
 ## Task
 - Exact implementation objective:

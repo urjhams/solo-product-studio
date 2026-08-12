@@ -1,0 +1,9 @@
+{
+  "name": "solo-product-studio",
+  "version": "0.2.0",
+  "description": "The full path from a product idea to production: validated direction, hardened behavior spec, MVP plan, a scaffolded repository with enforced gates, and a production-grade build, review, and ship cycle.",
+  "author": { "name": "Quân Đinh" },
+  "license": "MIT",
+  "keywords": ["product", "mvp", "ux", "startup", "saas", "indie", "workflow", "spec", "review", "shipping", "github"],
+  "skills": "./skills/"
+}

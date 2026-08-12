@@ -1,8 +1,19 @@
 # Solo Product Studio
 
-Solo Product Studio is a portable Agent Skill for turning a product idea or existing product into a validated direction, UX contract, MVP build plan, MVP review, production blueprint, or GitHub delivery plan.
+Solo Product Studio is a portable Agent Skill bundle covering one lifecycle end to end: a product idea becomes a validated direction, a hardened behavior spec, a build plan, a scaffolded repository with enforced gates, a reviewed implementation, and a shipped release.
 
-It works in Codex, Claude Code, OpenCode, and other runtimes that support directory-based `SKILL.md` skills. Internal agents and capabilities are bundled implementation playbooks; users only need to know two entry points — `product-studio` to go from an idea to a hardened plan, and `product-recheck` to re-evaluate a project already under development.
+It works in Codex, Claude Code, OpenCode, and other runtimes that support directory-based `SKILL.md` skills. Internal agents, capabilities, and engineering references are bundled implementation playbooks; users only need four entry points.
+
+| Skill | Owns | Ends at |
+|---|---|---|
+| `product-studio` | Idea → mode → platform → Design Contract → **Specify** (`BH-###` behaviors, `AM-###` ambiguities) → MVP plan → Implementation Brief | the brief, and `docs/agent/BEHAVIORS.md` mirrored beside the code |
+| `workflow-init` | Scaffolding the repository that implements it — memory bank, runbooks, acceptance and review gates, hooks, CI. Owns the loop's **sequence** | the PR merged |
+| `engineering-cycle` | The **depth behind each gate** — review axes, security, performance, sources, ADRs — and the phase after the merge: observability, release, shipping | production, verified |
+| `product-recheck` | Re-evaluating a project already under development: what the code actually is, versus what you meant | a Continue / Redirect / Cut / Stop verdict |
+
+The seam between them is one file. `docs/agent/BEHAVIORS.md` carries a `<!-- behavior-spec/v1 -->` marker on line 2; `product-studio` writes it, `workflow-init` emits a conforming skeleton for repositories that never ran it, the coverage hook greps it, and the reviewer judges against it. A project using all four gets one specification, not four.
+
+`engineering-cycle`'s references are **vendored, not linked** — and `workflow-init` copies the relevant ones into `docs/engineering/`. A scaffolded repository therefore keeps working when this bundle is not installed, which is the same reason every pointer in the generated docs is repo-relative.
 
 ## The user experience
 
@@ -233,7 +244,12 @@ Scope expansion during a timeboxed build triggers another QA choice: include and
 
 ## Extending the bundle
 
-Add internal capabilities under `skills/product-studio/references/capabilities/` with purpose, inputs, outputs, completion gate, fallback, and handoff. Add provider behavior to `references/adapters.md`. Add reusable output formats under `templates/`. Do not create another public skill unless a host-specific distribution requirement makes it unavoidable.
+Add internal capabilities under `skills/product-studio/references/capabilities/` with purpose, inputs, outputs, completion gate, fallback, and handoff. Add provider behavior to `references/adapters.md`. Add reusable output formats under `templates/`. Add engineering guidance as a file under `skills/engineering-cycle/references/`, routed from that skill's gate table and, if a scaffolded repo should carry it, mapped in `skills/workflow-init/scripts/init.sh`. Do not create another public skill unless a host-specific distribution requirement makes it unavoidable — four is the lifecycle, not a starting point.
+
+Two invariants the test suite enforces, both learned from the packs this content was vendored from:
+
+- **No reference may contain a `../../references/` link.** Those packs shipped ten skills pointing at a sibling directory their installer never fetched, so the bibliographies were dead on arrival.
+- **Every file `engineering-cycle` routes to must exist**, and `init.sh --check` asserts the count it maps equals the count that lands. A gate table that names a missing file is the same bug wearing a different hat.
 
 ## Validation
 

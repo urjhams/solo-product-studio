@@ -183,7 +183,7 @@ The selected mode is a hypothesis with a revisit trigger, not a permanent label.
 
 After an approved MVP or production plan and an approved Implementation Brief, offer:
 
-1. Start implementation now: read the Implementation Brief and the Behavior Spec first, inspect the repository, lock scope, implement the first vertical slice test-first, name the `BH-###` in every test written, run every verification check, and update state.
+1. Start implementation now: read the Implementation Brief and the Behavior Spec first, inspect the repository, lock scope, implement the first vertical slice test-first, name the `BH-###` in every test written, run every verification check, and update state. If the repository has no `docs/agent/CARD.md`, scaffold it with `workflow-init` before the first slice — the gates, the behavior-coverage hook, and the mirrored Behavior Spec are what keep the brief enforced rather than merely written. Then hand off to `engineering-cycle`, which owns the depth behind each gate and the phase after the PR merges.
 2. Save plan only: write artifacts and state without source changes.
 3. Export the Implementation Brief as a standalone implementation prompt.
 4. Create GitHub Issues from the brief: preserve acceptance and verification criteria including their `BH-###` citations, inspect existing issues/milestones, show a proposal, publish only after approval.
@@ -195,4 +195,4 @@ Maintain one canonical state file at `.product-studio/project.yaml` and Markdown
 
 ## Host portability
 
-This bundle has two public skills: `product-studio` for idea-to-brief work and `product-recheck` for re-evaluating a project already under development. On hosts without slash commands, invoke them with `Use product-studio to help me build a product.` and `Use product-recheck to re-evaluate this project.` Supporting files are relative to this directory; `product-recheck` reads the same references, templates, schemas, and state. Never claim a provider was used unless its adapter actually succeeded.
+This bundle has four public skills, in lifecycle order: `product-studio` for idea-to-brief work, `workflow-init` to scaffold the repository that implements the brief, `engineering-cycle` for the build/verify/review/ship depth, and `product-recheck` for re-evaluating a project already under development. On hosts without slash commands, invoke them with `Use product-studio to help me build a product.`, `Use workflow-init to set up the agent workflow in this repo.`, `Use engineering-cycle to implement and ship this.`, and `Use product-recheck to re-evaluate this project.` Supporting files are relative to this directory; `product-recheck` reads the same references, templates, schemas, and state. Never claim a provider was used unless its adapter actually succeeded.
