@@ -19,7 +19,8 @@ writing or changing behavior → `docs/agent/BEHAVIORS.md` · opening a PR or de
    test, one Given/When/Then each, and sweep them for ambiguity (`RUNBOOKS.md#specify`). **An
    unresolved ambiguity is a question, not a guess** — a green suite over a misread requirement
    proves nothing. Architectural decision (new dependency, new boundary, rejecting a plausible
-   alternative) → record it (ADR or equivalent) in the same task, never as a follow-up.
+   alternative) → record it in the same task, never as a follow-up: an ADR in whatever convention
+   this repo already uses, or `docs/decisions/NNN-<slug>.md` if it has none.
 3. **Red.** One failing test per behavior, and each test names the behavior it proves — `BH-###`
    in the test name or a comment directly above it. Test: `{{TEST_CMD}}`
 4. **Green.** Smallest change that passes. Build: `{{BUILD_CMD}}`

@@ -112,11 +112,32 @@ the exact HEAD, or it is forged. A new commit invalidates it; commit first, eval
 A reviewer finding triaged false-positive — or a verdict that proves wrong — is GOTCHAS
 material: log it and tighten that agent's brief in the same commit.
 
+**Review axes.** Spec, Correctness, Readability, Architecture, Security, Performance. Spec is the
+one a clean-looking diff fails, so judge it first: where `docs/agent/BEHAVIORS.md` covers the diff,
+the `BH-###` entries outrank the task prose, and a test naming no behavior is an orphan that
+usually encodes a misread requirement. One structural problem outranks ten nits — if both are
+present, the structural one *is* the review. A diff too large to review properly is itself a
+finding: say what it should be split along rather than rubber-stamping it.
+When `docs/engineering/` is present, `review.md` is the long form and `security.md` /
+`performance.md` are the depth behind the last two axes.
+
 ### Gate 3 — QA (on demand, never blocks)
 
 Code gates can't see visual or behavioral regressions. When the diff touches user-visible
 surface, spawn a QA agent (or run the app) to capture evidence for human review before flagging
 "needs eyeball". Treat its output as evidence, not as a pass.
+With `docs/engineering/` present: `checklists/accessibility-checklist.md` is the standing bar for
+user-visible surface, and `browser-verification.md` covers runtime checks in a real browser.
+
+### After the merge
+
+The loop ends at Gate 2 because that is where *this* repo's mechanisms end — nothing here blocks
+on a deploy. The work that follows a merge is real and easy to skip: instrument against the
+questions you'd be asked at 3am, version and changelog the change, ship it behind a flag with a
+rollback plan written *before* the deploy, and verify in production within the first hour.
+`docs/engineering/{observability,release,ship}.md` when present; otherwise the `engineering-cycle`
+skill. A surprise in production is GOTCHAS material in the same commit as the fix; a behavior that
+turned out wrong is a `BH-###` edit — retire it, never delete it.
 
 ---
 

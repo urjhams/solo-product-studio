@@ -27,7 +27,7 @@ skill — that skill writes the same file, so a project using both gets one spec
    test directories too (`tests/`, `test/`, `spec/`, `src/**/__tests__/`, `*Tests/`) — the behavior
    coverage hook greps them.
 
-2. **Two questions, one call** (AskUserQuestion). Skip either if the user already said.
+2. **Three questions, one call** (AskUserQuestion). Skip any the user already answered.
    - *Modules* (multiSelect): `core` (docs, always recommended), `agents`,
      `claude-code` (hooks + settings), `ci` (build+test workflow) — plus confirmation of the
      detected stacks.
@@ -35,6 +35,17 @@ skill — that skill writes the same file, so a project using both gets one spec
      **online** — the review runs in GitHub Actions on the PR and posts itself. Online adds the
      `ci-review` module (needs an `ANTHROPIC_API_KEY` repo secret, and a GitHub remote). Both
      lanes keep the local `task-evaluator` gate before the PR is opened, and both keep `agents`.
+   - *Engineering depth*: `engineering` copies the reference set from the sibling
+     `engineering-cycle` skill into `docs/engineering/` — the review axes, security, the build
+     loop, planning, ADRs, observability, release, CI, shipping, migration, and the checklists.
+     Add `engineering-web` only when the project has a browser frontend; it is the one whole-file
+     web-only reference and it is inert without the `chrome-devtools` MCP server. Decline both for
+     a repo that only wants the memory bank and the gates.
+
+     The copy is deliberate. Pointing at the skill would make every scaffolded repo depend on this
+     bundle staying installed, and the generated docs are repo-relative precisely so they do not.
+     Sections inside those files carry `<!-- stack: … -->` markers; those are reader hints, not a
+     build step — selection is per file, so nothing is ever silently dropped from inside one.
 
 3. **Scaffold** (mechanical, zero tokens):
    `bash <this-skill-dir>/scripts/init.sh --dest <project-root> --modules <chosen>`

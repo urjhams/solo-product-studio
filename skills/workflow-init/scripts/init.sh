@@ -4,7 +4,7 @@
 # {{PLACEHOLDERS}}) belongs to the skill/agent that wraps this, or to you with an editor.
 #
 # Usage:
-#   init.sh [--dest DIR] [--modules core,agents,claude-code,ci,ci-review] [--force] [--list]
+#   init.sh [--dest DIR] [--modules core,agents,claude-code,ci,ci-review,engineering,engineering-web] [--force] [--list]
 #   init.sh --uninstall [--dest DIR]
 #   init.sh --check          # self-test into a temp dir
 #
@@ -13,6 +13,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATES="$SCRIPT_DIR/../templates"
+# The engineering references live in the sibling engineering-cycle skill. They are
+# copied into the project rather than linked, so a scaffolded repo keeps working
+# when this bundle is not installed — the same reason every pointer in the
+# generated docs is repo-relative. Sibling layout holds for copy and symlink
+# installs alike, so this resolves in both.
+ENGINEERING="$SCRIPT_DIR/../../engineering-cycle/references"
 MANIFEST_DIR=".workflow-init"
 MANIFEST="$MANIFEST_DIR/manifest"
 
@@ -71,6 +77,41 @@ EOF
 ci/github/workflows/claude-review.yml|.github/workflows/claude-review.yml
 EOF
       ;;
+    # Depth behind the gates, and the phase after the PR merges. Sources resolve
+    # against $ENGINEERING, not $TEMPLATES. Sections inside these files carry
+    # `<!-- stack: … -->` markers; those are reader hints, not a build step —
+    # selection is per file, so nothing is ever silently dropped from one.
+    engineering) cat <<'EOF'
+engineering/review.md|docs/engineering/review.md
+engineering/security.md|docs/engineering/security.md
+engineering/performance.md|docs/engineering/performance.md
+engineering/build-loop.md|docs/engineering/build-loop.md
+engineering/planning.md|docs/engineering/planning.md
+engineering/doubt.md|docs/engineering/doubt.md
+engineering/api.md|docs/engineering/api.md
+engineering/sources.md|docs/engineering/sources.md
+engineering/adr.md|docs/engineering/adr.md
+engineering/observability.md|docs/engineering/observability.md
+engineering/release.md|docs/engineering/release.md
+engineering/ci.md|docs/engineering/ci.md
+engineering/ship.md|docs/engineering/ship.md
+engineering/migration.md|docs/engineering/migration.md
+engineering/checklists/definition-of-done.md|docs/engineering/checklists/definition-of-done.md
+engineering/checklists/security-checklist.md|docs/engineering/checklists/security-checklist.md
+engineering/checklists/performance-checklist.md|docs/engineering/checklists/performance-checklist.md
+engineering/checklists/accessibility-checklist.md|docs/engineering/checklists/accessibility-checklist.md
+engineering/checklists/observability-checklist.md|docs/engineering/checklists/observability-checklist.md
+engineering/checklists/testing-patterns.md|docs/engineering/checklists/testing-patterns.md
+engineering/checklists/orchestration-patterns.md|docs/engineering/checklists/orchestration-patterns.md
+EOF
+      ;;
+    # Browser verification is the one whole-file web-only reference, and it is inert
+    # without the chrome-devtools MCP server. Kept separate so an Apple-only or
+    # backend-only repo does not carry a document it can never act on.
+    engineering-web) cat <<'EOF'
+engineering/browser-verification.md|docs/engineering/browser-verification.md
+EOF
+      ;;
     *) echo "unknown module: $1" >&2; exit 1 ;;
   esac
 }
@@ -81,7 +122,7 @@ install() {
   # Validate up front: an exit inside `< <(map_module …)` process substitution
   # doesn't propagate, so a typo'd module would otherwise silently no-op.
   for mod in "${mods[@]}"; do
-    case "$mod" in core|agents|claude-code|ci|ci-review) ;; *) echo "unknown module: $mod" >&2; exit 1 ;; esac
+    case "$mod" in core|agents|claude-code|ci|ci-review|engineering|engineering-web) ;; *) echo "unknown module: $mod" >&2; exit 1 ;; esac
   done
   mkdir -p "$DEST/$MANIFEST_DIR"
   touch "$DEST/$MANIFEST"
@@ -89,6 +130,7 @@ install() {
     while IFS='|' read -r src dst; do
       [ -n "$src" ] || continue
       local from="$TEMPLATES/$src" to="$DEST/$dst"
+      case "$src" in engineering/*) from="$ENGINEERING/${src#engineering/}" ;; esac
       if [ -f "$to" ]; then
         if [ "$FORCE" = 1 ] && grep -q "	$dst\$" "$DEST/$MANIFEST" && [ "$(sha "$to")" = "$(grep "	$dst\$" "$DEST/$MANIFEST" | awk '{print $1}')" ]; then
           : # unmodified generated file — regenerate below
@@ -142,12 +184,20 @@ uninstall() {
 check() {
   local tmp; tmp=$(mktemp -d)
   echo "self-check in $tmp"
-  DEST="$tmp" MODULES="core,agents,claude-code,ci,ci-review" FORCE=0 install >/dev/null
-  local expected="AGENTS.md CLAUDE.md docs/agent/CARD.md docs/agent/RUNBOOKS.md docs/agent/STATE.md docs/agent/STATE-archive.md docs/agent/GOTCHAS.md docs/agent/BEHAVIORS.md scripts/agent/compact-state.py .claude/agents/task-evaluator.md .claude/agents/_platform-reviewer.template.md .claude/settings.json .claude/hooks/session-card.sh .claude/hooks/require-verdict.sh .claude/hooks/state-autocompact.sh .github/workflows/ci.yml .github/workflows/claude-review.yml"
+  DEST="$tmp" MODULES="core,agents,claude-code,ci,ci-review,engineering,engineering-web" FORCE=0 install >/dev/null
+  local expected="AGENTS.md CLAUDE.md docs/agent/CARD.md docs/agent/RUNBOOKS.md docs/agent/STATE.md docs/agent/STATE-archive.md docs/agent/GOTCHAS.md docs/agent/BEHAVIORS.md scripts/agent/compact-state.py .claude/agents/task-evaluator.md .claude/agents/_platform-reviewer.template.md .claude/settings.json .claude/hooks/session-card.sh .claude/hooks/require-verdict.sh .claude/hooks/state-autocompact.sh .github/workflows/ci.yml .github/workflows/claude-review.yml docs/engineering/review.md docs/engineering/ship.md docs/engineering/browser-verification.md docs/engineering/checklists/definition-of-done.md"
   local fail=0
   for f in $expected; do
     [ -f "$tmp/$f" ] || { echo "MISSING: $f"; fail=1; }
   done
+  # every engineering source the map names must actually exist in the sibling skill,
+  # or the module silently installs a short set
+  local nmapped nlanded
+  nmapped=$( { map_module engineering; map_module engineering-web; } | grep -c '^engineering/')
+  nlanded=$(find "$tmp/docs/engineering" -name '*.md' | wc -l | tr -d ' ')
+  [ "$nmapped" = "$nlanded" ] || { echo "ENGINEERING MODULE SHORT: mapped $nmapped, landed $nlanded"; fail=1; }
+  # the copies must not carry the upstream packs' unresolved ../../references/ links
+  ! grep -rq '\.\./\.\./references/' "$tmp/docs/engineering" || { echo "DANGLING UPSTREAM LINK in docs/engineering"; fail=1; }
   [ -x "$tmp/.claude/hooks/session-card.sh" ] || { echo "NOT EXECUTABLE: session-card.sh"; fail=1; }
   bash -n "$tmp/.claude/hooks/require-verdict.sh" || { echo "SYNTAX ERROR: require-verdict.sh"; fail=1; }
   # the behavior-spec format marker is a shared contract with the product-studio skill
@@ -182,5 +232,5 @@ case "$MODE" in
   install) install ;;
   uninstall) uninstall ;;
   check) check ;;
-  list) for m in core agents claude-code ci ci-review; do echo "[$m]"; map_module "$m" | sed 's/^/  /'; done ;;
+  list) for m in core agents claude-code ci ci-review engineering engineering-web; do echo "[$m]"; map_module "$m" | sed 's/^/  /'; done ;;
 esac

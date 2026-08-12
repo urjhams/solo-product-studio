@@ -47,3 +47,4 @@ A screen can clear every box above and still read as generated rather than desig
 - [ ] Padding matches content density, not a uniform oversized default applied everywhere
 - [ ] Layout isn't a stock card grid by default — the content's own shape gets a say
 - [ ] No lorem ipsum or placeholder copy left in a state that looks shippable
+- [ ] Surfaces aren't uniformly shadow-heavy — shadow signals elevation, not decoration
