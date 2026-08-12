@@ -31,6 +31,8 @@ Read whatever exists, in this order, and record which were absent:
 - `.product-studio/project.yaml` — goal, protected outcome, mode, decisions, assumptions, phase state
 - `docs/agent/BEHAVIORS.md` — the behavior spec mirror; the canonical copy is `.product-studio/artifacts/behavior-spec.md`
 - `docs/agent/CARD.md`, `AGENTS.md` / `CLAUDE.md`, `docs/agent/STATE.md` — an existing code map and working agreement
+- `docs/agent/GOTCHAS.md` — what already cost someone a debugging session; a drift you are about to report may already be a known trap
+- `docs/engineering/` — the standards this repo committed to; a gap against its own checklists is a finding, not a suggestion
 - README, ADRs, open issues, recent commit subjects
 
 None of these are required. Working from a repository that has never seen either skill is the normal case, not the fallback.
@@ -110,7 +112,7 @@ If the session produced no `.product-studio/` state because the repository never
 
 Offer the next action rather than assuming it:
 
-1. Apply the test delta now — add the uncovered behaviors' tests, fix the stale ones, delete the orphans.
+1. Apply the test delta now — add the uncovered behaviors' tests, fix the stale ones, delete the orphans. `engineering-cycle` owns that work; a repository with no `docs/agent/CARD.md` should get one from `workflow-init` first, or the same drift returns unenforced.
 2. Hand the changed behaviors to `product-studio` for a fresh MVP Build Plan and Implementation Brief.
 3. Save the verdict and stop.
 4. Create GitHub Issues from the deltas, one per behavior added or retired, published only after approval.
