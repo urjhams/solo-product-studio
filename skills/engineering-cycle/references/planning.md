@@ -11,10 +11,10 @@ to feed a `/build` command that is not part of this bundle, and adding it here w
 competing artifact location alongside `.product-studio/artifacts/` and `docs/agent/`. Use one of the
 two locations this bundle already has:
 
-- **Working from product-studio, upstream of implementation** — the plan lives in the MVP Build Plan
-  (`templates/mvp-build-plan.md`): `critical_path`, `vertical_slices`, `cut_triggers`, and
-  `definition_of_done` are the fields that carry dependency order, slicing, and scope guard. Fill
-  those, don't invent a parallel file.
+- **Working from product-studio, upstream of implementation** — the plan lives in the MVP Build
+  Plan, which that skill owns (its `templates/mvp-build-plan.md`, mirrored at the bundle root):
+  `critical_path`, `vertical_slices`, `cut_triggers`, and `definition_of_done` are the fields that
+  carry dependency order, slicing, and scope guard. Fill those, don't invent a parallel file.
 - **Working from an Implementation Brief or `docs/agent/BEHAVIORS.md` directly, no product-studio
   artifact** — the plan *is* the task ordering, cited by `BH-###`. Write it as a numbered list or a
   scratch note; it does not need a permanent home. The behaviors are already the source of truth for

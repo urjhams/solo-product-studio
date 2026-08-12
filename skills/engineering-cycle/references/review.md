@@ -1,14 +1,39 @@
 # Review
 
-Depth behind Gate 2. The generated `<area>-reviewer` agent ships with two axes — Standards and
-Spec — because that is what fits in a byte-stable agent definition. Open this file when you are
-that reviewer, or anyone standing in for it, and need the six axes underneath "Standards": what
-each one actually checks, the severity taxonomy, how to size a change, and when a diff should be
-split instead of reviewed.
+Depth behind Gate 2. The generated `<area>-reviewer` agent names these same six axes — it has to
+state them inline, because an agent definition is the cached prefix every spawn reuses and cannot
+depend on a file that may not exist in the target repo. What it has no room for is the detail:
+what each axis actually checks, the severity taxonomy, how to size a change, and when a diff
+should be split rather than reviewed. Open this when you are that reviewer, or standing in for
+it, and a call is close.
 
-## The Six Axes
+## The six axes
 
-### 1. Correctness
+**Judge Spec first.** It is the axis a clean-looking diff fails, and the only one bound to
+`BH-###` ids — the order both the reviewer agent and `docs/agent/RUNBOOKS.md` use. The five below
+it are ordered by how often they carry a blocker, not by importance.
+
+### 1. Spec
+
+Does the change do what the task or issue asked — no more, no less?
+
+Where `docs/agent/BEHAVIORS.md` covers the diff, **a `BH-###` outranks the task prose.** Judge
+against the behavior's Given/When/Then, not against a paraphrase of the ticket, and cite the id in
+the finding. Two failure shapes are equally findings here:
+
+- A behavior with no covering test — the acceptance criterion is unproven.
+- **An orphan test** — a test that names no `BH-###` and asserts something no behavior asks for.
+  It passed review at write time on vibes, and it will silently rot into "coverage" nobody can
+  explain.
+
+A behavior whose `AM-###` is still `Status: open` is not evaluable. Say so rather than guessing
+which reading the code should have implemented. Scope creep belongs here too, not in the nits:
+work the task did not ask for still has to be reviewed, tested, and maintained.
+
+If the diff has no corresponding behaviors yet, that itself is a finding: route back to
+`docs/agent/RUNBOOKS.md#specify` rather than reviewing against prose alone.
+
+### 2. Correctness
 
 Does the code do what it claims to?
 
@@ -18,7 +43,7 @@ Does the code do what it claims to?
 - Do the tests actually test the right things, and do they pass?
 - Off-by-one errors, race conditions, state inconsistencies?
 
-### 2. Readability & Simplicity
+### 3. Readability & Simplicity
 
 Can another engineer, or agent, understand this without the author explaining it?
 
@@ -34,7 +59,7 @@ Can another engineer, or agent, understand this without the author explaining it
 - **Repeated conditionals on the same shape signal a missing model or dispatcher.** A "temporary"
   branch is usually permanent debt.
 
-### 3. Architecture
+### 4. Architecture
 
 Does the change fit the system's design?
 
@@ -49,7 +74,7 @@ Does the change fit the system's design?
 - **Are type boundaries explicit?** Question gratuitous `any`/`unknown`/optional/casts and silent
   fallbacks that paper over an unclear invariant.
 
-### 4. Security
+### 5. Security
 
 Delegates to `references/security.md` — do not restate its content here, cite it. At review time,
 check the surface, not the mechanism:
@@ -63,7 +88,7 @@ check the surface, not the mechanism:
 
 A finding on this axis with a plausible exploit path is a BLOCKER by default.
 
-### 5. Performance
+### 6. Performance
 
 Delegates to `references/performance.md`. At review time, check for the patterns that don't need
 a profiler to spot:
@@ -73,22 +98,6 @@ a profiler to spot:
 - Synchronous work that should be async.
 - Missing pagination on a list endpoint.
 - Large objects allocated in a hot path.
-
-### 6. Spec
-
-Does the change do what the task or issue asked — no more, no less?
-
-Where `docs/agent/BEHAVIORS.md` covers the diff, **a `BH-###` outranks the task prose.** Judge
-against the behavior's Given/When/Then, not against a paraphrase of the ticket, and cite the id in
-the finding. Two failure shapes are equally findings here:
-
-- A behavior with no covering test — the acceptance criterion is unproven.
-- **An orphan test** — a test that names no `BH-###` and asserts something no behavior asks for.
-  It passed review at write time on vibes, and it will silently rot into "coverage" nobody can
-  explain.
-
-If the diff has no corresponding behaviors yet, that itself is a finding: route back to
-`docs/agent/RUNBOOKS.md#specify` rather than reviewing against prose alone.
 
 ## Severity
 

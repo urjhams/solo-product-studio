@@ -64,20 +64,24 @@ bytes.
 
 For a non-trivial decision — new branching logic, a module or service boundary, a property the
 compiler can't verify, an irreversible blast radius — the pattern is a bounded doubt cycle, not a
-second opinion bolted onto the diff:
+second opinion bolted onto the diff.
 
-1. **Claim.** State what stands, in two or three lines, and why it matters if wrong.
-2. **Extract.** Hand the reviewer the artifact (the diff, the function, the proposal) and the
-   contract it has to satisfy — stripped of your reasoning. If you hand over conclusions, you get
-   back agreement with your conclusions.
-3. **Doubt.** Spawn the reviewer with an adversarial prompt — "find what's wrong," not "is this
-   good." Pass artifact and contract only; never pass the claim, which biases toward agreement.
-4. **Reconcile.** The reviewer's output is data, not a verdict — re-read the artifact against each
-   finding before classifying: contract misread (fix the contract, re-run) / valid and actionable
-   (fix it) / valid trade-off (document it) / noise (note it, move on).
-5. **Stop.** Bounded at trivial-findings-only, three cycles, or explicit user override — whichever
-   comes first. A third cycle still surfacing real issues is information about the artifact, not a
-   reason to keep looping alone.
+**`references/doubt.md` owns that cycle** — CLAIM → EXTRACT → DOUBT → RECONCILE → STOP, the
+classification order, and the three-cycle bound. Read it there rather than here; two copies of a
+five-step protocol drift the first time either is edited, and the version that matters is the one
+the reviewer was briefed from.
+
+What belongs here is the *dispatch* half — how to spawn that reviewer without wasting quota:
+
+- **Pass artifact and contract, never the claim.** This is a briefing rule as much as a
+  methodological one: the claim is also the most token-expensive part of the brief and the part
+  that biases the answer.
+- **Cheapest tier that can do the job**, read-only, one reviewer per decision. Fan out across
+  independent decisions, never across the same one hoping for a majority.
+- **Serialize anything that writes.** Reviewers are read-only by construction; the orchestrator
+  applies fixes.
+- **The reviewer's output is data, not a verdict.** Budget for the reconcile pass — an accepted
+  finding you did not re-read against the artifact is just a different agent's guess.
 
 This dispatch pattern is what backs Gate 1 and Gate 2 in `docs/agent/RUNBOOKS.md#pr-flow`:
 `task-evaluator` is the fresh-context reviewer for acceptance (briefed on task statement +

@@ -3,8 +3,15 @@
 A tick-list, not an essay. Run the **Pre-merge** section at Gate 2 on any diff that trips
 `references/security.md`'s trigger (untrusted input, auth, storage, a third party); run the full
 list — **Pre-merge** and **Pre-release** — before cutting a release (`references/release.md`) or
-shipping (`references/ship.md`). An unchecked box on Pre-merge is a BLOCKER per
-`references/review.md`'s severity taxonomy unless the reviewer logs it as an explicit trade-off.
+shipping (`references/ship.md`). An unchecked box on Pre-merge with a plausible exploit path is a
+BLOCKER per `references/review.md`'s severity taxonomy — must fix before merge, and unlike MAJOR
+that row carries no logged-trade-off clause. Where a box does not apply to this stack, mark it
+`N/A` with the reason: an inapplicable control and an accepted risk are different things, and only
+one of them is honest.
+
+Not every row is backend- or web-shaped. `references/security.md` marks its stack-specific
+sections; the same applies here — session cookies and password hashing are meaningless on a
+client-only Apple target, while keychain accessibility and transport pinning are not.
 
 ## OWASP Top 10 (2021) — quick reference
 
