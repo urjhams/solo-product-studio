@@ -37,11 +37,16 @@ repository — if they're unset or wrong, fix that before anything else.
   the team has used), prove that piece before building anything that depends on it. If it fails, it
   fails before the dependent slices exist.
 
-**The horizontal-slicing anti-pattern:** writing all the tests for a feature, then all the
+**The test-then-implement anti-pattern:** writing all the tests for a feature, then all the
 implementation. It feels efficient but the tests get written against an imagined shape of the
 behavior rather than a proven one — by the time Green happens for the last test, the earlier ones
 may already be testing the wrong contract. One behavior, Red then Green then Refactor, then the
 next.
+
+This is a different failure from the *horizontal slicing* `references/planning.md` warns about.
+That one is about task decomposition across layers — all the database, then all the API, then all
+the UI. This one is about ordering within a single slice. Both leave you with unproven work in
+flight; they are not the same mistake, and a slice can hit one without the other.
 
 ## Scope discipline
 

@@ -197,7 +197,12 @@ uninstall() {
     fi
   done < "$DEST/$MANIFEST"
   rm -f "$DEST/$MANIFEST"; rmdir "$DEST/$MANIFEST_DIR" 2>/dev/null || true
-  find "$DEST/docs/agent" "$DEST/.claude" "$DEST/.github" -type d -empty -delete 2>/dev/null || true
+  # -delete implies -depth, so children go before parents in one pass. `-empty` is what
+  # makes it safe to name the shared parents: a project's own docs/ or scripts/ with
+  # anything left in it is never touched.
+  find "$DEST/docs/agent" "$DEST/docs/engineering" "$DEST/scripts/agent" \
+       "$DEST/.claude" "$DEST/.github" "$DEST/docs" "$DEST/scripts" \
+       -type d -empty -delete 2>/dev/null || true
   echo "Done: $removed removed, $kept kept."
 }
 
@@ -244,6 +249,9 @@ check() {
   # uninstall leaves nothing generated behind
   DEST="$tmp" uninstall >/dev/null
   [ -f "$tmp/AGENTS.md" ] && { echo "UNINSTALL LEFT: AGENTS.md"; fail=1; }
+  # empty generated dirs count as left behind — a project that uninstalled cleanly
+  # should not still carry a hollow docs/engineering/checklists/
+  [ -d "$tmp/docs/engineering" ] && { echo "UNINSTALL LEFT: empty docs/engineering"; fail=1; }
   rm -rf "$tmp"
   if [ "$fail" = 0 ]; then echo "CHECK OK"; else echo "CHECK FAILED"; exit 1; fi
 }

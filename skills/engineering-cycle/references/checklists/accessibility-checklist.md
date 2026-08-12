@@ -40,11 +40,16 @@ platform section(s) that match what you shipped.
 
 ## Quality: avoid the AI aesthetic
 
-A screen can clear every box above and still read as generated rather than designed. Watch for:
+Not a checklist — these are judgment calls with no pass/fail test, and a `[ ]` box next to
+"padding matches content density" is a box nobody can honestly tick. Everything above this line is
+checkable; this is guidance, deliberately unboxed.
 
-- [ ] No generic purple/indigo gradient standing in for an actual color decision
-- [ ] Not everything is `rounded-2xl` — corner radius varies with a component's role and size
-- [ ] Padding matches content density, not a uniform oversized default applied everywhere
-- [ ] Layout isn't a stock card grid by default — the content's own shape gets a say
-- [ ] No lorem ipsum or placeholder copy left in a state that looks shippable
-- [ ] Surfaces aren't uniformly shadow-heavy — shadow signals elevation, not decoration
+A screen can clear every box above and still read as generated rather than designed. The usual
+tells: a generic purple or indigo gradient standing in for an actual color decision; one corner
+radius applied to everything regardless of a component's role or size; uniform oversized padding
+that ignores content density; a stock three-card grid chosen before the content's own shape had a
+say; placeholder copy left in a state that looks shippable; and shadow used as decoration on every
+surface rather than as a signal of elevation.
+
+Only one of these is mechanically checkable — grep for leftover placeholder copy before shipping.
+The rest need eyes, which is what Gate 3 is for.

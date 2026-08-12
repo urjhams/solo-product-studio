@@ -4,6 +4,11 @@ The test-craft detail behind `references/build-loop.md#test-craft` — full exam
 table, and the sizing model. Open this when writing the tests for a slice, not when deciding whether
 to write them.
 
+Every principle here is stack-agnostic; the illustrations happen to be TypeScript. Read the shape,
+not the syntax — `#expect` in Swift Testing and `assert` in pytest fail the same way for the same
+reasons. The proportions below are one methodology, hedged deliberately: weight them differently if
+your integration layer is where the risk actually lives.
+
 ## The pyramid, with proportions
 
 ```
@@ -38,7 +43,6 @@ aren't responsible for catching your bugs — your tests are. A change that brea
 always going to break it; the test just would have said so first.
 
 ## DAMP over DRY
-<!-- stack: web -->
 
 Production code should avoid repetition. Tests should not, when avoiding it costs readability —
 each test should read as a self-contained specification. Examples below are TypeScript/Jest; the
@@ -77,7 +81,6 @@ can't control (external APIs, email sending). Over-mocking produces tests that p
 breaks.
 
 ## Arrange-Act-Assert
-<!-- stack: web -->
 
 ```typescript
 it('marks overdue tasks when deadline has passed', () => {
@@ -93,7 +96,6 @@ it('marks overdue tasks when deadline has passed', () => {
 ```
 
 ## One assertion per concept
-<!-- stack: web -->
 
 ```typescript
 // Good: each test verifies one behavior
@@ -110,7 +112,6 @@ it('validates titles correctly', () => {
 ```
 
 ## Test state, not interactions
-<!-- stack: web -->
 
 Assert on the outcome, not on which internal method fired. Interaction assertions break on
 refactors that don't change behavior:
@@ -130,7 +131,6 @@ it('calls db.query with ORDER BY created_at DESC', async () => {
 ```
 
 ## Name tests descriptively, and name the behavior
-<!-- stack: web -->
 
 ```typescript
 // Good: reads like a specification, and BH-014 is greppable
