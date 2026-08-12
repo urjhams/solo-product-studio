@@ -1,0 +1,51 @@
+name: Claude review
+on:
+  pull_request:
+    branches: ["{{DEFAULT_BRANCH}}"]
+    types: [opened, synchronize]
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this PR on two axes, in this order:
+            1. Standards — does the diff follow the conventions written in this repo
+               (AGENTS.md, docs/agent/, and any standards doc the touched area names)?
+               Read them; do not review from memory.
+            2. Spec — does it do what its title/body/linked issue says, no more, no less?
+               If docs/agent/BEHAVIORS.md covers the diff, judge against its BH-### entries
+               rather than the PR prose and cite the id. Flag any test that names no
+               behavior and asserts something no behavior asks for.
+
+            Product source lives in: {{SOURCE_DIRS}}. Weight findings there heaviest;
+            docs- and config-only changes get a light pass.
+
+            One line per finding: `path:line — <severity>: <problem>. <fix>.`
+            Severity is blocker / should-fix / nit. No praise, no summary of the diff,
+            no findings you cannot point at a line for. Skip formatting nits that do
+            not change meaning.
+
+            Do not run the full test suite — CI already does. Read the diff and the
+            code around it.
+
+            End with a verdict line: APPROVE or REQUEST-CHANGES.
+
+            Post top-level feedback with `gh pr comment`. Use
+            `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`)
+            for line-specific issues. Only post GitHub comments — do not return the
+            review as a message.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
