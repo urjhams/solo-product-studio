@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -75,6 +76,26 @@ class BundleTests(unittest.TestCase):
         result = subprocess.run(["bash", str(script), "--check"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("CHECK OK", result.stdout)
+
+    def test_engineering_module_refuses_to_write_anything_without_its_sibling_skill(self):
+        # workflow-init copied out on its own has no engineering-cycle beside it. The
+        # copy must fail before touching the project, not halfway through the core
+        # files and before the CLAUDE.md bridge.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            isolated, project = root / "isolated", root / "project"
+            source = ROOT / "skills" / "workflow-init"
+            shutil.copytree(source / "scripts", isolated / "scripts")
+            shutil.copytree(source / "templates", isolated / "templates")
+            project.mkdir()
+            result = subprocess.run(
+                ["bash", str(isolated / "scripts" / "init.sh"),
+                 "--dest", str(project), "--modules", "core,engineering"],
+                capture_output=True, text=True,
+            )
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("engineering-cycle", result.stderr)
+            self.assertEqual(list(project.rglob("*")), [], "a failed run must leave the project untouched")
 
     def test_vendored_engineering_references_have_no_dangling_upstream_links(self):
         # The packs these were vendored from linked to a sibling ../../references/

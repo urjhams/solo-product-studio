@@ -124,6 +124,26 @@ install() {
   for mod in "${mods[@]}"; do
     case "$mod" in core|agents|claude-code|ci|ci-review|engineering|engineering-web) ;; *) echo "unknown module: $mod" >&2; exit 1 ;; esac
   done
+  # Every source must exist before anything is written. The engineering modules read
+  # from a sibling skill, so a workflow-init copied out on its own would otherwise
+  # abort mid-run on a raw `cp:` error under `set -e` — after the core files landed
+  # but before the CLAUDE.md bridge, leaving a half-scaffolded project.
+  for mod in "${mods[@]}"; do
+    while IFS='|' read -r src dst; do
+      [ -n "$src" ] || continue
+      local check="$TEMPLATES/$src"
+      case "$src" in engineering/*) check="$ENGINEERING/${src#engineering/}" ;; esac
+      if [ ! -f "$check" ]; then
+        echo "missing source for module '$mod': $check" >&2
+        case "$src" in engineering/*)
+          echo "  the '$mod' module needs the engineering-cycle skill beside this one." >&2
+          echo "  install the whole bundle, or drop '$mod' from --modules." >&2
+          ;;
+        esac
+        exit 1
+      fi
+    done < <(map_module "$mod")
+  done
   mkdir -p "$DEST/$MANIFEST_DIR"
   touch "$DEST/$MANIFEST"
   for mod in "${mods[@]}"; do
