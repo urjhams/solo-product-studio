@@ -172,6 +172,57 @@ class BundleTests(unittest.TestCase):
             with self.subTest(term=term):
                 self.assertIn(term, skill + docs)
 
+    def test_idea_validation_runs_before_intent_extraction_for_rough_ideas(self):
+        skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
+        start = skill.index("## Start every session")
+        end = skill.index("## Goal and house rules")
+        start_every_session = skill[start:end]
+        idea_validation_pos = start_every_session.index("references/idea-validation.md")
+        hypothesis_pos = start_every_session.index("state a one-sentence hypothesis")
+        self.assertLess(idea_validation_pos, hypothesis_pos)
+        routing = skill[skill.index("## Stage routing"):skill.index("## Specification")]
+        for row in ["Rough idea", "Prototype / idea validation"]:
+            with self.subTest(row=row):
+                line = next(l for l in routing.splitlines() if l.startswith(f"| {row} "))
+                self.assertIn("Idea Validation", line)
+        for row in ["Existing research", "Existing UX/UI", "MVP planning/build",
+                    "Mid-development re-evaluation", "Existing MVP", "Production need",
+                    "GitHub delivery", "Resume"]:
+            with self.subTest(row=row):
+                line = next(l for l in routing.splitlines() if l.startswith(f"| {row} "))
+                self.assertNotIn("Idea Validation", line)
+
+    def test_idea_validation_requires_explicit_confirmation_to_continue(self):
+        protocol = (ROOT / "skills/product-studio/references/idea-validation.md").read_text()
+        for phrase in ["explicit choice", "whatever you think", "sounds good", "silence",
+                       "deferrals, not agreement", "Continue", "Refine"]:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, protocol)
+
+    def test_idea_validation_refine_loop_reruns_bounded_research(self):
+        protocol = " ".join((ROOT / "skills/product-studio/references/idea-validation.md").read_text().split())
+        for phrase in ["Refine loop", "GUESS:", "re-run the bounded research pass",
+                       "re-present the checkpoint", "No fixed round cap", "running round count"]:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, protocol)
+
+    def test_idea_validator_capability_and_index_are_registered(self):
+        index = (ROOT / "skills/product-studio/references/capabilities/index.md").read_text()
+        self.assertIn("idea-validator.md", index)
+        contract = (ROOT / "skills/product-studio/references/capabilities/idea-validator.md").read_text()
+        for phrase in ["Purpose", "Inputs", "Outputs", "Gate", "Handoff"]:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, contract)
+
+    def test_prototype_research_rule_defers_to_idea_validation(self):
+        prototype = (ROOT / "skills/product-studio/references/prototype-mode.md").read_text()
+        self.assertIn("Already satisfied by `references/idea-validation.md`", prototype)
+
+    def test_product_opportunity_template_has_validation_section(self):
+        template = (ROOT / "templates/product-opportunity.md").read_text()
+        self.assertIn("## Validation", template)
+        self.assertLess(template.index("## Validation"), template.index("## Summary"))
+
     def test_fluid_workflow_rules_are_explicit(self):
         skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
         protocol = (ROOT / "skills/product-studio/references/qa-session.md").read_text()

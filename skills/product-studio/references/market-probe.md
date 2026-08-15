@@ -10,7 +10,7 @@ Run it only when the mode choice is genuinely between **Indie App and Startup**,
 
 This is a probe, not the Evidence Pack.
 
-1. **Alternatives** — who already solves this, directly and indirectly, and what do they charge? Use `workflows/competitor-review-research.md`.
+1. **Alternatives** — who already solves this, directly and indirectly, and what do they charge? Reuse `references/idea-validation.md`'s findings if they are still fresh and answer this; only re-probe with `workflows/competitor-review-research.md` if they are stale or did not resolve the fork.
 2. **Monetized pain** — is there evidence someone already pays money, or does painful manual work, for this? Prefer pricing pages, paid alternatives, job posts, and repeated complaints over opinion.
 3. **Market shape** — a narrow niche with a reachable direct channel, or an expandable beachhead with a distribution loop?
 

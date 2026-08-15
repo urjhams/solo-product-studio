@@ -9,3 +9,6 @@ Outputs: target user, context, job-to-be-done, workaround, pain frequency/severi
 Gate: identifiable target user, specific problem, actionable outcome, narrow wedge, recorded critical uncertainties.
 
 Handoff: `evidence-scout` unless the user already has adequate evidence.
+
+When `idea-validator` ran, populate the Product Opportunity Brief's `## Validation` section from
+its verdict and cited findings instead of re-deriving alternatives and wedge from scratch.

@@ -52,9 +52,14 @@ Record the choice as `D-###` with a revisit trigger stating it was made on speed
 
 ## Research rule
 
-Bounded to a quick validate pass, ahead of the build: does anything like this already exist, and is there any sign the pain is real? Roughly three sources, one round, no Evidence Pack. Skip the market probe entirely — there is no Indie-versus-Startup fork to resolve at this stage.
+Already satisfied by `references/idea-validation.md`, which runs before mode selection for every
+raw idea, Prototype included. Do not repeat it. Only re-run a bounded pass — roughly three
+sources, one round, no Evidence Pack — if the idea materially changed after mode selection in a
+way idea validation did not already cover. Skip the market probe entirely — there is no
+Indie-versus-Startup fork to resolve at this stage.
 
-If web research is unavailable, record the gap and continue. A prototype is itself the validation instrument; do not block it on research.
+If web research is unavailable, record the gap and continue. A prototype is itself the validation
+instrument; do not block it on research.
 
 ## Specify rule
 

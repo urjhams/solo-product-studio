@@ -21,6 +21,8 @@ REQUIRED = [
     "skills/product-studio/references/platform-decision.md",
     "skills/product-studio/references/market-probe.md",
     "skills/product-studio/references/prototype-mode.md",
+    "skills/product-studio/references/idea-validation.md",
+    "skills/product-studio/references/capabilities/idea-validator.md",
     "skills/product-studio/references/capabilities/implementation-brief.md",
     "scripts/build_implementation_brief.py",
     "scripts/validate_implementation_brief.py",

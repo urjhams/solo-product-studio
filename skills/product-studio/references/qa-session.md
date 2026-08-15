@@ -23,6 +23,9 @@ Persist `session.status`, `session.current_phase`, `session.current_gate`, `sess
 
 ## Intent extraction (intake only)
 
+For a raw or vague idea, `references/idea-validation.md` runs first, before this section. The
+hypothesis below is built from its confirmed/refined idea, not the original unvalidated one.
+
 The question loop above finds *missing answers*. Intake has a harder job first: finding out what
 the user actually wants, which is not always what they say or even what they think they should
 say. Everything downstream — mode, platform, behaviors, the entire Behavior Spec — inherits this

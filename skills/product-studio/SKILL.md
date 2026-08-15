@@ -15,12 +15,13 @@ The lifecycle is **Discover → Specify → Red → Green → Refactor**. Discov
 
 1. Read `.product-studio/project.yaml` if it exists. If it exists, offer resume options and do not repeat completed intake.
 2. Otherwise ask: **“What do you want to build or improve?”**
-3. Extract answers from the user's free-form response before asking anything else, then state a one-sentence hypothesis of what they want with a confidence number. Below ~70%, say what is missing.
-4. Ask one question at a time, each carrying your guess at the answer. Use 3–7 high-value questions, with numbered choices for categorical decisions and an `Other` path for free text. Stop when you can predict the user's reaction to the next three questions you would ask. When an answer sounds like it is signalling what a Serious Product Person would say, ask what they would want if they did not have to justify it to anyone. Full protocol: `references/qa-session.md`.
-5. Restate intent in the user's own words in six lines — outcome, user, why now, success, constraint, and out of scope. `Out of scope` is not optional: without it every later cut reads as a broken promise. Require an explicit yes; "whatever you think", "sounds good", "sure, let's go", and silence are deferrals, not agreement.
-6. Detect both the product stage and operating mode. They are separate: stage describes where the work is; mode describes how the work should be optimized.
-7. Show an intake summary, goal, house rules, recommended path, and phase done bars; wait for explicit confirmation before research or planning.
-8. Default to phase checkpoints, not approval after every artifact. Return to the user at intake, consequential transitions, phase completion, external publication, or when blocked.
+3. When the answer is a raw or vague idea with no existing research, UX, repository, or MVP behind it, run idea validation (`references/idea-validation.md`) before anything else: bounded, cited web research on whether the problem is real, who else solves it, and what niche/scope it implies, then a mandatory checkpoint — continue with the idea, or refine it and re-research. Do not proceed past this step without an explicit continue.
+4. Extract answers from the user's free-form response before asking anything else, then state a one-sentence hypothesis of what they want with a confidence number. Below ~70%, say what is missing. If idea validation ran, build the hypothesis from its confirmed idea, not the original raw one.
+5. Ask one question at a time, each carrying your guess at the answer. Use 3–7 high-value questions, with numbered choices for categorical decisions and an `Other` path for free text. Stop when you can predict the user's reaction to the next three questions you would ask. When an answer sounds like it is signalling what a Serious Product Person would say, ask what they would want if they did not have to justify it to anyone. Full protocol: `references/qa-session.md`.
+6. Restate intent in the user's own words in six lines — outcome, user, why now, success, constraint, and out of scope. `Out of scope` is not optional: without it every later cut reads as a broken promise. Require an explicit yes; "whatever you think", "sounds good", "sure, let's go", and silence are deferrals, not agreement.
+7. Detect both the product stage and operating mode. They are separate: stage describes where the work is; mode describes how the work should be optimized.
+8. Show an intake summary, goal, house rules, recommended path, and phase done bars; wait for explicit confirmation before research or planning.
+9. Default to phase checkpoints, not approval after every artifact. Return to the user at intake, consequential transitions, phase completion, external publication, or when blocked.
 
 ## Goal and house rules
 
@@ -75,9 +76,9 @@ Route only the relevant workflow:
 
 | Situation | Default path |
 |---|---|
-| Prototype / idea validation | Quick validate → Product-to-Pixels (short) → Spec Cartographer (short form) → MVP Forge (prototype plan) |
+| Prototype / idea validation | Idea Validation → Product-to-Pixels (short) → Spec Cartographer (short form) → MVP Forge (prototype plan) |
 | Mode fork (Indie vs Startup) | Market Probe → Mode recommendation → Product Lens |
-| Rough idea | Product Lens → Evidence Scout → Product-to-Pixels → Spec Cartographer → MVP Forge |
+| Rough idea | Idea Validation → Product Lens → Evidence Scout → Product-to-Pixels → Spec Cartographer → MVP Forge |
 | Existing research | Evidence Scout → Product-to-Pixels → Spec Cartographer → MVP Forge |
 | Existing UX/UI | Design Contract Validator → Spec Cartographer → MVP Forge |
 | MVP planning/build | Spec Cartographer → MVP Forge, with Technical Feasibility and Scope Guard |
@@ -160,7 +161,7 @@ Use the internal capability contracts in `references/capabilities/` and template
 - Implementation Brief
 - Re-evaluation Verdict (`/product-recheck`)
 
-Read only the relevant contract and template for the current stage. Read `references/operating-modes.md` when selecting or explaining a mode, `references/market-probe.md` before recommending Indie App versus Startup or when revisiting a mode, `references/platform-decision.md` when choosing the platform surface and track, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
+Read only the relevant contract and template for the current stage. Read `references/idea-validation.md` before intent extraction whenever the idea is raw or vague, `references/operating-modes.md` when selecting or explaining a mode, `references/market-probe.md` before recommending Indie App versus Startup or when revisiting a mode, `references/platform-decision.md` when choosing the platform surface and track, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
 Read `references/prototype-mode.md` before running any phase in Prototype mode; it overrides the default scope, mock, platform, research, testing, and done-bar rules.
 Read `references/behavior-discovery.md` and `references/spec-hardening.md` before running the `specify` phase, and `references/spec-hardening.md` again whenever a requirement changes after Specify — a changed requirement reopens the sweep.
 Read `references/qa-session.md` for the exact state machine and question/draft/review protocol.

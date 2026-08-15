@@ -1,5 +1,12 @@
 # Product Opportunity Brief
 
+## Validation
+- Sense-check verdict:
+- Key facts (cited):
+- Niche/scope options considered:
+- Rounds run:
+- Confidence:
+
 ## Summary
 - Target user:
 - User context:
