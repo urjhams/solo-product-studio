@@ -1,0 +1,4 @@
+interface:
+  display_name: "Engineering Cycle"
+  short_description: "Implement, verify, review, and ship a change"
+  default_prompt: "Use engineering-cycle to implement and ship this."

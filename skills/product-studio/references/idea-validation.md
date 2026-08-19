@@ -81,4 +81,4 @@ Carry the confirmed/refined idea statement, the verdict, and the cited findings 
   research.
 
 Record `verdict`, `rounds`, and `confidence` under a `validation:` block in
-`.product-studio/project.yaml`.
+`.product-studio/project.json`.

@@ -20,8 +20,10 @@ Both are fast and mock-first. They differ in what the build must prove.
 
 Choose Prototype when the user says prototype, proof of concept, quick MVP, "just want to see it", "validate the idea", or "before I commit to building it". Choose Hackathon only when there is an event, a demo, or judges.
 
-## Prototype mode rules
+## Fast-mode rules
 
-Read `references/prototype-mode.md` before running any Prototype phase.
+Read `references/prototype-mode.md` before running any Prototype phase, and
+`references/hackathon-mode.md` before any Hackathon phase. Each overrides the default scope,
+mock, research, specification, testing, and done-bar rules for its mode.
 
 For the Indie App versus Startup fork, infer only after running the market probe in `references/market-probe.md`. State the confidence and the evidence the call rests on, and record the revisit trigger that would change it.

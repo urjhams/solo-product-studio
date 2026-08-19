@@ -76,4 +76,4 @@ Read `adapters/xcodebuild-mcp/README.md` for detection, the install prompt, and 
 - A mode switch re-opens this decision. See `references/market-probe.md`.
 - Mobile track reads `pattern-library/mobile-patterns.yaml`; web track reads `pattern-library/saas-patterns.yaml`.
 
-Canonical state key: `constraints.platform: {surface, track, stack, rationale, revisit_trigger}` in `.product-studio/project.yaml`.
+Canonical state key: `constraints.platform: {surface, track, stack, rationale, revisit_trigger}` in `.product-studio/project.json`.

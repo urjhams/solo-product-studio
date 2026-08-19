@@ -69,8 +69,21 @@ and the part most likely to be skipped because nothing blocks on it:
    during an incident is telemetry you do not have during the incident.
 2. **Version the change.** `references/release.md` — the tag is the source of truth, the changelog
    is written by a person, and a breaking change gets a migration note and a deprecation window.
-3. **Ship it.** `references/ship.md` — pre-launch checklist, flag off, staged rollout with decision
-   thresholds at each stage, and a rollback plan written *before* the deploy, not during it.
+3. **Ship it — only if the profile says so.** A merged PR is not a deploy authorization. Check
+   `workflow_profile.deployment.allowed` in `.product-studio/project.json` first; it is `false` in
+   every compiled default, production included, because deployment is an opt-in the user makes and
+   not a consequence of finishing work. Enabling it also requires a `delivery_target` of `staging`
+   or `production` — a deploy needs somewhere to deploy to.
+
+   Once allowed, `scripts/workflow_runner.py deploy` refuses until five things are recorded: the
+   **target environment**, the **approval owner**, the **rollback plan**, the **observability
+   questions** you will check afterwards, and the **advance/hold/rollback thresholds**. Write them
+   before the deploy, not during it. Where the repository is on GitHub, back this with a deployment
+   environment — required reviewers, branch restrictions, isolated secrets, and protection rules
+   are the mechanism; this list is the content that goes into it.
+
+   Then `references/ship.md` — pre-launch checklist, flag off, staged rollout with decision
+   thresholds at each stage, and the rollback plan you already wrote.
 4. **Verify in production.** First hour, against the questions from step 1. A deploy that nobody
    checked is a deploy that nobody knows the state of.
 5. **Feed what you learned back.** A surprise in production is `docs/agent/GOTCHAS.md` material,

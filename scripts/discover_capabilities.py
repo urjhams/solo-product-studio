@@ -25,15 +25,12 @@ def main() -> int:
         },
     }
     if args.project:
-        state = args.project.expanduser()
-        state.parent.mkdir(parents=True, exist_ok=True)
-        existing = state.read_text() if state.exists() else "project:\n  id: product\n  stage: idea\n  mode: custom\n\n"
-        # Keep the helper dependency-free: append a canonical JSON block that
-        # YAML readers can consume as a mapping while preserving user state.
-        marker = "\ncapability_registry_json:"
-        before = existing.split(marker, 1)[0].rstrip()
-        state.write_text(before + marker + " |\n" + "\n".join("  " + line for line in json.dumps(result, indent=2).splitlines()) + "\n")
-        print(f"Persisted capability registry to {state}")
+        state_path = args.project.expanduser()
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state = json.loads(state_path.read_text()) if state_path.exists() else {"project": {"id": "product", "stage": "idea", "mode": "custom"}}
+        state["capabilities"] = result
+        state_path.write_text(json.dumps(state, indent=2) + "\n")
+        print(f"Persisted capability registry to {state_path}")
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 

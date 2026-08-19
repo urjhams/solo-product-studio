@@ -68,10 +68,10 @@ Short form, timeboxed to ten minutes. Skipping it entirely is not an option: a p
 - 3–7 behaviors covering the one flow: the happy path, the one precondition failure that would embarrass the demo, and whatever the validation question actually turns on.
 - Sweep only the ambiguity classes that change what the user can judge — `term`, `boundary`, `visibility`. Skip actor, state, timing, failure, identity, quantity, and reversibility unless the idea being validated is about one of them.
 - Ambiguities may stay `deferred` without a revisit trigger. Nothing blocks.
-- Run `scripts/validate_behavior_spec.py <spec> --prototype`; open ambiguities warn instead of failing.
+- Run `scripts/validate_behavior_spec.py <spec> --mode prototype`; open ambiguities warn instead of failing, and the behavior count is capped at 7.
 - The repository mirror is optional for a throwaway prototype.
 
-`workflow_runner.py` reads `project.mode: prototype` and records an unclosed spec as `prototype-warning: <reason>` on the phase instead of blocking the checkpoint.
+`workflow_runner.py` reads the compiled `planning.spec_gate: warn` and records an unclosed spec as `prototype-warning: <reason>` on the phase instead of blocking the checkpoint.
 
 ## Plan rule
 
@@ -107,7 +107,7 @@ Minimum. One runnable check on the flow's core logic — whatever breaks the pro
 
 Not required: independent review of the artifact, exhaustive states, tests beyond the one check, production readiness of any kind.
 
-Set `project.mode: prototype` in `.product-studio/project.yaml`. `scripts/workflow_runner.py` reads it and clears a checkpoint on a passing self review instead of demanding an independent reviewer.
+Set `project.mode: prototype` at intake so the profile compiles with `review.independent_required: false`. `scripts/workflow_runner.py` reads that field and clears a checkpoint on a passing self review instead of demanding an independent reviewer.
 
 ## Final planning
 

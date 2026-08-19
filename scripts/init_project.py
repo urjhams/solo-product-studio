@@ -1,106 +1,58 @@
 #!/usr/bin/env python3
-"""Create a minimal .product-studio project memory and artifact folders."""
+"""Create a .product-studio project memory and artifact folders.
+
+The state shape lives in workflow_runner.new_state(). This script used to hand-write
+the same structure as YAML text, which meant the deterministic runner and the file it
+was supposed to run on could never be the same file. One shape, one format, one writer.
+"""
 from __future__ import annotations
 import argparse
-import datetime as dt
-import re
 import json
+import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from workflow_profile import MODE_PROFILES  # noqa: E402
+from workflow_runner import new_state  # noqa: E402
+
+DONE_BARS = {
+    "intake": ["goal defined", "house rules confirmed"],
+    "product": ["target user defined", "wedge narrow", "assumptions recorded"],
+    "research": ["evidence cited or research plan created", "uncertainty labeled"],
+    "design": ["promise, hero moment, flow, scope, three principles defined"],
+    "specify": ["behaviors cover every in-scope capability", "every behavior has an observable and a source", "zero open ambiguities", "mirror in sync"],
+    "mvp": ["core flow executable", "mocks explicit", "cuts explicit", "demo defined"],
+    "review": ["independent findings recorded", "recommendation supported"],
+    "production": ["boundaries, migration, risks, release criteria defined"],
+    "final_planning": ["context complete", "constraints explicit", "verification stopping conditions defined", "output format defined", "independent review passed"],
+}
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("name")
     parser.add_argument("--directory", type=Path, default=Path.cwd())
     parser.add_argument("--stage", default="idea")
-    parser.add_argument("--mode", default="custom")
+    parser.add_argument("--mode", default="custom", choices=sorted(MODE_PROFILES))
+    parser.add_argument("--risk-tier", help="override the mode's default risk tier")
+    parser.add_argument("--delivery-target", help="override the mode's default delivery target")
     args = parser.parse_args()
     root = args.directory / ".product-studio"
-    state = root / "project.yaml"
-    if state.exists():
-        raise SystemExit(f"Refusing to overwrite {state}")
-    now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+    state_path = root / "project.json"
+    if state_path.exists():
+        raise SystemExit(f"Refusing to overwrite {state_path}")
     project_id = re.sub(r"[^a-z0-9]+", "-", args.name.lower()).strip("-") or "product"
+    overrides = {key: value for key, value in (("risk_tier", args.risk_tier), ("delivery_target", args.delivery_target)) if value}
+    state = new_state(project_id, args.mode, name=args.name, stage=args.stage, profile_overrides=overrides)
+    for phase, bar in DONE_BARS.items():
+        state["phases"][phase]["done_bar"] = bar
     for folder in ("artifacts", "research", "github"):
         (root / folder).mkdir(parents=True, exist_ok=True)
-    state.write_text(f"""project:
-  id: {json.dumps(project_id)}
-  name: {json.dumps(args.name)}
-  stage: {args.stage}
-  mode: {args.mode}
-  created_at: {now}
-  updated_at: {now}
-  goal: ""
-  protected_outcome: ""
-  path: ""
-
-house_rules:
-  constraints: []
-  non_negotiables: []
-  scope_exclusions: []
-  evidence_policy: "cite sources; label inference and unknowns"
-  approval_boundaries: ["external publication", "irreversible decisions"]
-
-session:
-  status: intake
-  current_phase: intake
-  current_gate: goal-and-house-rules
-  next_action: ask-intake-question
-  questions: []
-  unanswered_questions: []
-  iteration_count: 0
-  approval_status: pending
-  updated_at: {now}
-  last_checkpoint: null
-
-phases:
-  intake: {{status: in_progress, done_bar: [goal defined, house rules confirmed]}}
-  product: {{status: pending, done_bar: [target user defined, wedge narrow, assumptions recorded]}}
-  research: {{status: pending, done_bar: [evidence cited or research plan created, uncertainty labeled]}}
-  design: {{status: pending, done_bar: [promise, hero moment, flow, scope, three principles defined]}}
-  specify: {{status: pending, done_bar: [behaviors cover every in-scope capability, every behavior has an observable and a source, zero open ambiguities, mirror in sync]}}
-  mvp: {{status: pending, done_bar: [core flow executable, mocks explicit, cuts explicit, demo defined]}}
-  review: {{status: pending, done_bar: [independent findings recorded, recommendation supported]}}
-  production: {{status: pending, done_bar: [boundaries, migration, risks, release criteria defined]}}
-  final_planning: {{status: pending, done_bar: [context complete, constraints explicit, verification stopping conditions defined, output format defined, independent review passed]}}
-
-reviews: []
-
-specify:
-  behavior_spec: ""
-  mirror: docs/agent/BEHAVIORS.md
-  behaviors: 0
-  open_ambiguities: 0
-  validated: false
-
-final_planning:
-  status: pending
-  source_artifacts: []
-  implementation_brief: ""
-  context_sources: []
-  constraints: []
-  verification:
-    do_not_finish_until: []
-    evidence: []
-    unresolved: []
-  output_format: {{}}
-  reviewer: ""
-  review_iterations: 0
-  approval_status: pending
-
-capabilities: {{}}
-product: {{}}
-business: {{}}
-constraints: {{}}
-research: {{}}
-assumptions: []
-decisions: []
-design: {{}}
-mvp: {{}}
-production: {{}}
-github: {{}}
-""")
-    print(f"Created {state}")
+    state_path.write_text(json.dumps(state, indent=2) + "\n")
+    print(f"Created {state_path}")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

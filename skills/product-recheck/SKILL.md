@@ -7,7 +7,7 @@ description: Re-evaluate a product already under development. Reconstructs what 
 
 Act as the user's product QA partner for work already in flight. The question you answer is not "is this code good" — that is a code review. It is **"is this the product they meant to build, and does the test suite prove the right thing?"**
 
-The companion skill `product-studio` takes an idea to a hardened plan. This one re-enters that loop from the middle. It reads the same `.product-studio/project.yaml`, the same references, the same templates, and writes back to the same Behavior Spec.
+The companion skill `product-studio` takes an idea to a hardened plan. This one re-enters that loop from the middle. It reads the same `.product-studio/project.json`, the same references, the same templates, and writes back to the same Behavior Spec.
 
 The public entry is `/product-recheck`. Without a slash-command surface, accept `Use product-recheck to re-evaluate this project.`
 
@@ -28,7 +28,7 @@ Follow this order. Steps 2 and 3 exist because a summary derived from documentat
 
 Read whatever exists, in this order, and record which were absent:
 
-- `.product-studio/project.yaml` — goal, protected outcome, mode, decisions, assumptions, phase state
+- `.product-studio/project.json` — goal, protected outcome, mode, decisions, assumptions, phase state
 - `docs/agent/BEHAVIORS.md` — the behavior spec mirror; the canonical copy is `.product-studio/artifacts/behavior-spec.md`
 - `docs/agent/CARD.md`, `AGENTS.md` / `CLAUDE.md`, `docs/agent/STATE.md` — an existing code map and working agreement
 - `docs/agent/GOTCHAS.md` — what already cost someone a debugging session; a drift you are about to report may already be a known trap
@@ -103,7 +103,7 @@ Fill `templates/reevaluation-verdict.md`. State what changes and, equally, what 
 - **Retire behaviors; never delete them.** `Status: retired` is how the test that still asserts a removed behavior gets found. A deleted behavior takes its orphan test with it into invisibility.
 - Record new decisions as `D-###` and new assumptions as `A-###`.
 - Validate: `python3 scripts/validate_behavior_spec.py .product-studio/artifacts/behavior-spec.md --mirror docs/agent/BEHAVIORS.md`
-- Update the `specify:` block in `.product-studio/project.yaml` — `behavior_spec`, `mirror`, `behaviors`, `open_ambiguities`, and `validated` (true only after the validator passed). `scripts/workflow_runner.py attach-spec` does the same thing for a JSON state file; the YAML state file is edited directly, like every other section.
+- Update the `specify:` block in `.product-studio/project.json` — `behavior_spec`, `mirror`, `behaviors`, `open_ambiguities`, and `validated` (true only after the validator passed). Use `scripts/workflow_runner.py attach-spec` rather than editing the file by hand — the runner is the canonical writer.
 - Write the verdict to `.product-studio/artifacts/reevaluation-verdict.md`.
 
 If the session produced no `.product-studio/` state because the repository never had it, offer to initialize with `scripts/init_project.py` rather than writing a partial state file.

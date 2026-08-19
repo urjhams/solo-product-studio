@@ -13,7 +13,7 @@ The lifecycle is **Discover → Specify → Red → Green → Refactor**. Discov
 
 ## Start every session
 
-1. Read `.product-studio/project.yaml` if it exists. If it exists, offer resume options and do not repeat completed intake.
+1. Read `.product-studio/project.json` if it exists. If it exists, offer resume options and do not repeat completed intake.
 2. Otherwise ask: **“What do you want to build or improve?”**
 3. When the answer is a raw or vague idea with no existing research, UX, repository, or MVP behind it, run idea validation (`references/idea-validation.md`) before anything else: bounded, cited web research on whether the problem is real, who else solves it, and what niche/scope it implies, then a mandatory checkpoint — continue with the idea, or refine it and re-research. Do not proceed past this step without an explicit continue.
 4. Extract answers from the user's free-form response before asking anything else, then state a one-sentence hypothesis of what they want with a confidence number. Below ~70%, say what is missing. If idea validation ran, build the hypothesis from its confirmed idea, not the original raw one.
@@ -22,6 +22,7 @@ The lifecycle is **Discover → Specify → Red → Green → Refactor**. Discov
 7. Detect both the product stage and operating mode. They are separate: stage describes where the work is; mode describes how the work should be optimized.
 8. Show an intake summary, goal, house rules, recommended path, and phase done bars; wait for explicit confirmation before research or planning.
 9. Default to phase checkpoints, not approval after every artifact. Return to the user at intake, consequential transitions, phase completion, external publication, or when blocked.
+10. **Compile the confirmed answers into a workflow profile before running the first phase.** Mode, risk tier, and delivery target become one policy at `workflow_profile` in `.product-studio/project.json`, and every gate downstream reads that policy rather than the mode label. `scripts/init_project.py <name> --mode <mode>` writes it; `scripts/workflow_profile.py --mode <mode>` shows what a mode compiles to before you commit to it. A mode nothing enforces is a label — read `references/workflow-profile.md`.
 
 ## Goal and house rules
 
@@ -48,12 +49,12 @@ Ask how the work will be judged before recommending a fast mode. Prototype and H
 When the choice is between Indie App and Startup, or monetization intent is unknown, run the bounded market probe in `references/market-probe.md` first. Present the recommendation with confidence, the evidence behind it, and what would change it. Do not guess this fork from the user's own framing alone.
 
 - **Prototype**: validate the idea, not ship a product. One flow, smallest scope that carries the idea, mock everything by default with the mock boundary confirmed by the user, fastest track to a clickable app, minimum tests, throwaway-friendly. Pick this when the user wants a quick MVP, a proof of concept, or to see the idea before committing to build it.
-- **Hackathon**: 2–8 hours, demo/showcase, one core flow, memorable wow moment, mock-first, one major integration maximum, fastest toolchain to a running app.
+- **Hackathon**: 2–8 hours, demo/showcase, one core flow, memorable wow moment, mock-first, one major integration maximum, fastest toolchain to a running app. Compiles to no CI, no independent review, a warn-only spec gate capped at 9 behaviors, and one high-signal automated check. See `references/hackathon-mode.md`.
 - **Indie App**: solo/small team, narrow paid wedge, low maintenance, one platform first, payment and margin validation.
 - **SaaS**: recurring business workflow, buyer/user distinction, measurable ROI, roles, onboarding, billing, and reliability deferred until the core workflow is proven.
 - **Startup**: beachhead segment, retention, distribution, unit economics, defensibility, and expansion path; never use market size as proof.
 - **Production**: validated product or explicit production request; security, reliability, architecture, migration, observability, and release operations.
-- **Custom**: user-selected combination such as `Indie + one-day MVP + native iOS + paid beta`.
+- **Custom**: user-selected combination such as `Indie + one-day MVP + native iOS + paid beta`. Custom still compiles to concrete policy — it is an override set over a durable default, not a free-text label.
 
 Present the recommended path and ask the user to accept, change mode, customize it, or answer more questions. Persist the selection.
 
@@ -99,9 +100,9 @@ Two activities, in order:
 1. **Behavior discovery.** For each in-scope capability, walk the eight branches in `references/behavior-discovery.md` and write a `BH-###` for each one that survives. Product scope and behavior scope are separate: cutting product scope removes capabilities, cutting behavior scope removes correctness. Never trade a behavior away to hit a timebox — defer it with an assumption and a revisit trigger so the gap stays visible.
 2. **Spec hardening.** Assume the specification is incomplete. Sweep every requirement sentence against the ten ambiguity classes in `references/spec-hardening.md` and record each finding as an `AM-###` with two reasonable readings, the user-visible difference between them, the decision needed, and your recommendation. Resolve what the product definition and prior decisions already answer; ask the user the rest, highest impact first, with a recommended pick.
 
-Every ambiguity terminates in `resolved -> D-###`, `deferred -> A-###` with a revisit trigger, or `out_of_scope`. **An ambiguity left `open` blocks the Implementation Brief.** Repeat the sweep until a pass finds nothing new — resolving one ambiguity routinely exposes another.
+Every ambiguity terminates in `resolved -> D-###`, `deferred -> A-###` with a revisit trigger, or `out_of_scope`. **An ambiguity left `open` blocks the Implementation Brief** wherever the profile sets `planning.spec_gate: block` — everywhere except Prototype and Hackathon, where it warns and is recorded instead. Repeat the sweep until a pass finds nothing new — resolving one ambiguity routinely exposes another.
 
-Write the Behavior Spec to `.product-studio/artifacts/behavior-spec.md` and mirror it byte-for-byte to `docs/agent/BEHAVIORS.md` in the repository, so the implementing agent, the reviewer, and CI read the file the code lives beside. Verify both with `scripts/validate_behavior_spec.py <canonical> --mirror docs/agent/BEHAVIORS.md`, then record `behavior_spec`, `mirror`, `behaviors`, `open_ambiguities`, and `validated` in the `specify:` block of `.product-studio/project.yaml`. Set `validated: true` only after the validator actually passed.
+Write the Behavior Spec to `.product-studio/artifacts/behavior-spec.md` and, wherever the compiled profile sets `planning.spec_gate: block`, mirror it byte-for-byte to `docs/agent/BEHAVIORS.md` in the repository, so the implementing agent, the reviewer, and CI read the file the code lives beside. In a fast mode the mirror is optional — there is no reviewer or CI on the other end of it. Verify both with `scripts/validate_behavior_spec.py <canonical> --mirror docs/agent/BEHAVIORS.md`, then record `behavior_spec`, `mirror`, `behaviors`, `open_ambiguities`, and `validated` in the `specify:` block of `.product-studio/project.json`. Set `validated: true` only after the validator actually passed.
 
 Downstream, behaviors are load-bearing: MVP Build Plan slices are cut along them, every acceptance criterion in the Implementation Brief cites the `BH-###` it enforces, and every test the implementing agent writes names the behavior it proves. That last link is what makes an orphan test findable later.
 
@@ -117,7 +118,7 @@ Every workflow is a QA session, but do not interrupt after every artifact:
 4. Record assumptions and decisions with IDs.
 5. Draft the artifact.
 6. Show uncertainty, rejected alternatives, and risks.
-7. Run the phase done bar and a mandatory independent review when the host can provide a fresh context.
+7. Run the phase done bar, and an independent review where the profile sets `review.independent_required` and the host can provide a fresh context. A host that cannot provide one does not make the review optional — it makes the phase `self_review_only`, which is not approval. See `references/host-capabilities.md`.
 8. Repair the highest-impact gap and repeat the review loop until the bar passes or the agent is blocked.
 9. Return to the user at the phase checkpoint with the result, remaining uncertainty, and next decision.
 
@@ -162,7 +163,8 @@ Use the internal capability contracts in `references/capabilities/` and template
 - Re-evaluation Verdict (`/product-recheck`)
 
 Read only the relevant contract and template for the current stage. Read `references/idea-validation.md` before intent extraction whenever the idea is raw or vague, `references/operating-modes.md` when selecting or explaining a mode, `references/market-probe.md` before recommending Indie App versus Startup or when revisiting a mode, `references/platform-decision.md` when choosing the platform surface and track, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
-Read `references/prototype-mode.md` before running any phase in Prototype mode; it overrides the default scope, mock, platform, research, testing, and done-bar rules.
+Read `references/prototype-mode.md` before running any phase in Prototype mode and `references/hackathon-mode.md` before any Hackathon phase; each overrides the default scope, mock, platform, research, testing, and done-bar rules for its mode.
+Read `references/workflow-profile.md` when a rule's strictness is in question — it is the table every gate reads, and it labels each rule `enforced`, `ci-enforced`, or `advisory`. Read `references/host-capabilities.md` before claiming a rule is enforced on a host that cannot enforce it.
 Read `references/behavior-discovery.md` and `references/spec-hardening.md` before running the `specify` phase, and `references/spec-hardening.md` again whenever a requirement changes after Specify — a changed requirement reopens the sweep.
 Read `references/qa-session.md` for the exact state machine and question/draft/review protocol.
 Read `references/done-bars.md` for phase completion criteria and `references/house-rules.md` for invariant selection.
@@ -193,7 +195,7 @@ After an approved MVP or production plan and an approved Implementation Brief, o
 
 ## Persistence
 
-Maintain one canonical state file at `.product-studio/project.yaml` and Markdown artifacts under `.product-studio/artifacts/`. Update only the relevant sections. Store capability availability, goal, house rules, mode, stage, path, questions answered, assumptions, decisions, behaviors and open ambiguity counts, phase status, done bars, review iterations, approvals, and next gate. The Behavior Spec is the one artifact that also lives in the repository, mirrored at `docs/agent/BEHAVIORS.md` and tracked in git with the code it describes. Use `scripts/init_project.py` or `scripts/discover_capabilities.py` when deterministic local setup is useful.
+Maintain one canonical state file at `.product-studio/project.json` and Markdown artifacts under `.product-studio/artifacts/`. Update only the relevant sections. Store capability availability, goal, house rules, mode, the compiled `workflow_profile`, stage, path, questions answered, assumptions, decisions, behaviors and open ambiguity counts, phase status, done bars, review iterations, approvals, and next gate. `scripts/workflow_runner.py` is the canonical writer — the file it operates on and the file this skill declares canonical are the same file. The Behavior Spec is the one artifact that also lives in the repository, mirrored at `docs/agent/BEHAVIORS.md` and tracked in git with the code it describes. Use `scripts/init_project.py` or `scripts/discover_capabilities.py` when deterministic local setup is useful.
 
 ## Host portability
 

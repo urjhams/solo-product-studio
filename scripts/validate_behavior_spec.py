@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import workflow_profile  # noqa: E402
 
 MARKER = "<!-- behavior-spec/v1 -->"
 BEHAVIOR_FIELDS = ("Status", "Priority", "Level", "Given", "When", "Then", "Observable", "Source")
@@ -93,7 +97,7 @@ def _check_ambiguity(aid: str, name: str, body: list[str]) -> list[str]:
     return errors
 
 
-def validate(path: Path, mirror: Path | None = None, prototype: bool = False) -> list[str]:
+def validate(path: Path, mirror: Path | None = None, prototype: bool = False, *, mode: str | None = None) -> list[str]:
     text = path.read_text()
     errors: list[str] = []
     if MARKER not in text:
@@ -118,8 +122,13 @@ def validate(path: Path, mirror: Path | None = None, prototype: bool = False) ->
         seen.add(aid)
         errors.extend(_check_ambiguity(aid, name, body))
 
-    if prototype:
-        # ponytail: prototype validation is throwaway, open ambiguities warn instead of blocking
+    profile = workflow_profile.compile_profile(mode or ("prototype" if prototype else "custom"))
+    cap = profile["planning"]["max_behaviors"]
+    if cap is not None and len(behaviors) > cap:
+        # The mode references state a behavior range in prose; this is the mechanism.
+        errors.append(f"behavior count {len(behaviors)} exceeds the {profile['mode']} cap of {cap}")
+    if profile["planning"]["spec_gate"] == "warn":
+        # A fast mode's spec is deliberately unclosed: open ambiguities warn, not block.
         errors = [error for error in errors if "still open" not in error and "revisit trigger" not in error]
 
     if mirror is not None:
@@ -135,9 +144,13 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("spec", type=Path)
     parser.add_argument("--mirror", type=Path, default=None, help="repository copy that must match byte for byte")
-    parser.add_argument("--prototype", action="store_true", help="Prototype mode: open ambiguities warn instead of blocking")
+    # --mode is the surface. Seven modes cannot mean seven booleans, and the fast
+    # modes relax the same rules as each other anyway — they differ in the cap.
+    parser.add_argument("--mode", default="custom", choices=sorted(workflow_profile.MODE_PROFILES), help="operating mode whose compiled profile governs the gate")
+    parser.add_argument("--prototype", action="store_const", dest="mode", const="prototype", help="alias for --mode prototype")
+    parser.add_argument("--hackathon", action="store_const", dest="mode", const="hackathon", help="alias for --mode hackathon")
     args = parser.parse_args()
-    errors = validate(args.spec, args.mirror, args.prototype)
+    errors = validate(args.spec, args.mirror, mode=args.mode)
     if errors:
         print("\n".join(f"ERROR {error}" for error in errors))
         return 1

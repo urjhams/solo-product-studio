@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "workflow_profile/v1",
+  "description": "The compiled workflow policy. Nothing in this bundle validates JSON at runtime — adding a schema library would break the dependency-free rule — so scripts/workflow_profile.py:compile_profile being the only writer of these values is the enforcement, and tests/test_bundle.py asserts this file never drifts from its MODE_PROFILES table.",
+  "type": "object",
+  "required": ["version", "mode", "risk_tier", "delivery_target", "safety_floor"],
+  "properties": {
+    "version": {"const": "workflow_profile/v1"},
+    "mode": {"enum": ["prototype", "hackathon", "indie", "saas", "startup", "production", "custom"]},
+    "risk_tier": {"enum": ["low", "moderate", "high"]},
+    "delivery_target": {"enum": ["local_demo", "code_only", "pull_request", "preview", "staging", "production"]},
+    "planning": {"type": "object", "properties": {"spec_gate": {"enum": ["warn", "block"]}, "max_behaviors": {"type": ["integer", "null"], "minimum": 1}}},
+    "design": {"type": "object", "properties": {"gate": {"enum": ["advisory", "required", "evidence_required"]}}},
+    "development": {"type": "object", "properties": {"slicing": {"enum": ["flow", "vertical"]}, "refactor_phase": {"type": "boolean"}, "pull_request_required": {"type": "boolean"}}},
+    "testing": {"type": "object", "properties": {"automated_required": {"enum": ["smoke", "core", "full"]}, "manual_required": {"type": "boolean"}, "coverage_target": {"type": ["string", "null"]}, "ci_required": {"type": "boolean"}}},
+    "review": {"type": "object", "properties": {"independent_required": {"type": "boolean"}}},
+    "deployment": {"type": "object", "description": "allowed is false in every compiled default; production deployment is an explicit opt-in and requires a delivery_target of staging or production.", "properties": {"allowed": {"type": "boolean"}}},
+    "safety_floor": {"type": "array", "description": "Cumulative and never cuttable. An override may add entries; nothing removes one.", "items": {"type": "string"}},
+    "revisit_when": {"type": "string"}
+  }
+}

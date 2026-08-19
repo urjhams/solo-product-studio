@@ -9,7 +9,7 @@ new → intake → proposed → confirmed → drafting → reviewing → checkpo
                          ↘ paused       ↘ rejected              ↘ blocked
 ```
 
-Persist `session.status`, `session.current_phase`, `session.current_gate`, `session.questions`, `session.next_action`, `session.iteration_count`, and `session.updated_at` in `.product-studio/project.yaml`. Never advance from `proposed` without a user confirmation answer.
+Persist `session.status`, `session.current_phase`, `session.current_gate`, `session.questions`, `session.next_action`, `session.iteration_count`, and `session.updated_at` in `.product-studio/project.json`. Never advance from `proposed` without a user confirmation answer.
 
 ## Question loop
 

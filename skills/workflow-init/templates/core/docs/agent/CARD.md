@@ -35,7 +35,7 @@ writing or changing behavior → `docs/agent/BEHAVIORS.md` · opening a PR or de
 9. **Gate — only if the diff touches product source** (`{{SOURCE_DIRS}}`): spawn `task-evaluator`
    (the author must not grade its own work). SHIP → PR; FIX-FIRST → fix, re-run **once**, then
    escalate. **Docs/tooling-only diff → light lane: do NOT spawn the evaluator.**
-10. **Finishing a task = opening its PR** to `{{DEFAULT_BRANCH}}` — automatic, not on request.
+10. {{PR_POLICY}} Target: `{{DEFAULT_BRANCH}}`.
 11. **Then the review:** {{REVIEW_LANE}} (Full flow: `RUNBOOKS.md#pr-flow`.)
 12. **Bounded loops:** one evaluator re-run, one reviewer re-review. Then stop and escalate.
 

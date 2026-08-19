@@ -12,7 +12,7 @@ missing control, not a formality.
 
 ### Code quality
 - [ ] Full suite passes (unit, integration, e2e where present)
-- [ ] Build succeeds with no warnings
+- [ ] Build succeeds with no **new** warnings beyond the recorded baseline (a repository that already carries warnings is not a reason to skip the check, and is not a reason to block on someone else's debt)
 - [ ] Lint and type checking pass
 - [ ] Gate 2 (review) is APPROVE, not a bypassed REQUEST-CHANGES
 - [ ] No debug logging or `console.log`/`print` left in the shipped path
@@ -93,6 +93,9 @@ previous one "looked fine" after ten minutes — the monitoring windows are the 
 | P95 latency | Within 20% of baseline | 20-50% above baseline | >50% above baseline |
 | Client errors | No new error types | New errors at <0.1% of sessions | New errors at >0.1% of sessions |
 | Business metrics | Neutral or positive | Decline <5% (may be noise) | Decline >5% |
+
+These numbers are the default, not the truth about your system. Where the service has its own SLO
+or a recorded baseline, that governs and this table is what you use until one exists.
 
 Roll back immediately, without waiting out the window, on: error rate >2x baseline, P95 latency
 >50% above baseline, a spike in user-reported issues, a data integrity problem, or a discovered
