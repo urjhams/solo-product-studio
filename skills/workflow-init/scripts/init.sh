@@ -83,6 +83,7 @@ EOF
     agents) cat <<'EOF'
 agents/task-evaluator.md|.claude/agents/task-evaluator.md
 agents/platform-reviewer.md|.claude/agents/_platform-reviewer.template.md
+agents/qa-agent.md|.claude/agents/_qa-agent.template.md
 EOF
       ;;
     claude-code) cat <<'EOF'
@@ -203,7 +204,8 @@ install() {
   echo "Done: $installed written, $skipped skipped (already exist)."
   echo "Next steps:"
   echo "  1. Fill the {{PLACEHOLDERS}} — list them: grep -rn '{{[A-Z_]*}}' $DEST/AGENTS.md $DEST/docs/agent $DEST/.claude $DEST/.github 2>/dev/null"
-  echo "  2. agents module: instantiate .claude/agents/_platform-reviewer.template.md once per component."
+  echo "  2. agents module: instantiate .claude/agents/_platform-reviewer.template.md once per component,"
+  echo "     and _qa-agent.template.md once for the user-visible surface (or delete it if there is none)."
   echo "  3. claude-code module: hooks activate on next session; verify with a throwaway 'gh pr create' dry-run."
   case ",$MODULES," in *,ci-review,*) echo "  4. ci-review module: set the API key secret — gh secret set ANTHROPIC_API_KEY" ;; esac
   echo "  Uninstall anytime: init.sh --uninstall (removes only unmodified generated files)."

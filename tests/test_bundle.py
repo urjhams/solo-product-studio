@@ -618,6 +618,67 @@ class ProfileScenarioTests(unittest.TestCase):
         self.assertEqual(profile["design"]["gate"], "evidence_required")
         self.assertIn("human-approval-gate", profile["safety_floor"])
 
+    def test_merge_policy_and_review_lane_compile_for_every_mode(self):
+        for mode in workflow_profile.MODE_PROFILES:
+            with self.subTest(mode=mode):
+                profile = workflow_profile.compile_profile(mode)
+                # A lane only exists where an independent review does, and where one does it is
+                # never `none` — that pairing would compile a required review nobody runs.
+                if profile["review"]["independent_required"]:
+                    self.assertIn(profile["review"]["lane"], ("offline", "online"))
+                else:
+                    self.assertEqual(profile["review"]["lane"], "none")
+                self.assertIn(profile["development"]["merge_policy"], workflow_profile.MERGE_POLICIES)
+        # `ask` everywhere except the risk tier that names a human approval gate.
+        self.assertEqual(workflow_profile.compile_profile("indie")["development"]["merge_policy"], "ask")
+        self.assertEqual(workflow_profile.compile_profile("production")["development"]["merge_policy"], "never")
+
+    def test_high_risk_refuses_to_let_the_agent_merge_its_own_pr(self):
+        for overrides in ({"development": {"merge_policy": "auto_on_approve"}}, {"development": {"merge_policy": "ask"}}):
+            with self.subTest(overrides=overrides):
+                self.assertEqual(workflow_profile.compile_profile("production", overrides)["development"]["merge_policy"], "never")
+        # And the derivation follows the tier, not the mode label.
+        self.assertEqual(
+            workflow_profile.compile_profile("indie", {"risk_tier": "high", "development": {"merge_policy": "auto_on_approve"}})["development"]["merge_policy"],
+            "never",
+        )
+
+    def test_invalid_merge_policy_or_orphaned_review_requirement_is_refused(self):
+        with self.assertRaises(ValueError):
+            workflow_profile.compile_profile("indie", {"development": {"merge_policy": "yolo"}})
+        with self.assertRaises(ValueError):
+            workflow_profile.compile_profile("indie", {"review": {"lane": "postal"}})
+        with self.assertRaises(ValueError):
+            workflow_profile.compile_profile("indie", {"review": {"lane": "none"}})
+
+    def test_generated_merge_gate_has_a_mechanism_behind_it(self):
+        init = ROOT / "skills/workflow-init"
+        settings = json.loads((init / "templates/claude-code/settings.json").read_text())
+        # `ask` works precisely because the permission prompt fires; an allow entry silences it.
+        self.assertNotIn("Bash(gh pr merge:*)", settings["permissions"]["allow"])
+        hook = (init / "templates/claude-code/hooks/require-verdict.sh").read_text()
+        self.assertIn('MERGE_POLICY="{{MERGE_POLICY}}"', hook)
+        for policy in workflow_profile.MERGE_POLICIES:
+            self.assertIn(policy, hook)
+        self.assertIn(".review", hook)
+        self.assertIn("--admin", hook)
+        skill = (init / "SKILL.md").read_text()
+        for placeholder in ("{{MERGE_POLICY}}", "{{MERGE_POLICY_TEXT}}", "{{MERGE_POLICY_LINE}}"):
+            self.assertIn(placeholder, skill)
+        self.assertIn("{{MERGE_POLICY_TEXT}}", (init / "templates/core/AGENTS.md").read_text())
+        self.assertIn("{{MERGE_POLICY_LINE}}", (init / "templates/core/docs/agent/CARD.md").read_text())
+        self.assertIn("{{MERGE_POLICY}}", (init / "templates/core/docs/agent/RUNBOOKS.md").read_text())
+
+    def test_gate_three_has_the_qa_agent_it_tells_you_to_spawn(self):
+        init = ROOT / "skills/workflow-init"
+        qa = (init / "templates/agents/qa-agent.md").read_text()
+        for placeholder in ("{{QA_SURFACE}}", "{{QA_RUN_CMD}}", "{{QA_TOOLING}}"):
+            self.assertIn(placeholder, qa)
+        # QA reports evidence; it never writes the marker that unblocks a merge.
+        self.assertIn("Never write a verdict marker", qa)
+        self.assertIn("agents/qa-agent.md|.claude/agents/_qa-agent.template.md", (init / "scripts/init.sh").read_text())
+        self.assertIn("_qa-agent.template.md", (init / "SKILL.md").read_text())
+
     def test_unknown_mode_is_refused_at_every_entry_point(self):
         with self.assertRaises(ValueError):
             workflow_profile.compile_profile("hakathon")
@@ -638,6 +699,8 @@ class ProfileScenarioTests(unittest.TestCase):
                 self.assertIn(compiled["risk_tier"], profile_schema["properties"]["risk_tier"]["enum"])
                 self.assertIn(compiled["delivery_target"], profile_schema["properties"]["delivery_target"]["enum"])
                 self.assertIn(compiled["design"]["gate"], profile_schema["properties"]["design"]["properties"]["gate"]["enum"])
+                self.assertIn(compiled["development"]["merge_policy"], profile_schema["properties"]["development"]["properties"]["merge_policy"]["enum"])
+                self.assertIn(compiled["review"]["lane"], profile_schema["properties"]["review"]["properties"]["lane"]["enum"])
         table = (ROOT / "skills/product-studio/references/workflow-profile.md").read_text()
         for mode in workflow_profile.MODE_PROFILES:
             self.assertIn(mode, table)

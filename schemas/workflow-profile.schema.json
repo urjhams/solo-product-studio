@@ -11,9 +11,9 @@
     "delivery_target": {"enum": ["local_demo", "code_only", "pull_request", "preview", "staging", "production"]},
     "planning": {"type": "object", "properties": {"spec_gate": {"enum": ["warn", "block"]}, "max_behaviors": {"type": ["integer", "null"], "minimum": 1}}},
     "design": {"type": "object", "properties": {"gate": {"enum": ["advisory", "required", "evidence_required"]}}},
-    "development": {"type": "object", "properties": {"slicing": {"enum": ["flow", "vertical"]}, "refactor_phase": {"type": "boolean"}, "pull_request_required": {"type": "boolean"}}},
+    "development": {"type": "object", "description": "merge_policy is the mechanism behind the merge step: `never` blocks it, `ask` prompts the user, `auto_on_approve` needs an APPROVE review marker for the exact HEAD. A high risk_tier forces `never` and no override reopens it.", "properties": {"slicing": {"enum": ["flow", "vertical"]}, "refactor_phase": {"type": "boolean"}, "pull_request_required": {"type": "boolean"}, "merge_policy": {"enum": ["never", "ask", "auto_on_approve"]}}},
     "testing": {"type": "object", "properties": {"automated_required": {"enum": ["smoke", "core", "full"]}, "manual_required": {"type": "boolean"}, "coverage_target": {"type": ["string", "null"]}, "ci_required": {"type": "boolean"}}},
-    "review": {"type": "object", "properties": {"independent_required": {"type": "boolean"}}},
+    "review": {"type": "object", "description": "lane is where the review runs: `offline` is a local reviewer subagent spawned on the PR HEAD, `online` is the repo's own Actions workflow, `none` only where no independent review is required.", "properties": {"independent_required": {"type": "boolean"}, "lane": {"enum": ["offline", "online", "none"]}}},
     "deployment": {"type": "object", "description": "allowed is false in every compiled default; production deployment is an explicit opt-in and requires a delivery_target of staging or production.", "properties": {"allowed": {"type": "boolean"}}},
     "safety_floor": {"type": "array", "description": "Cumulative and never cuttable. An override may add entries; nothing removes one.", "items": {"type": "string"}},
     "revisit_when": {"type": "string"}

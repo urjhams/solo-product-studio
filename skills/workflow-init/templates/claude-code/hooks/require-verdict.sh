@@ -11,6 +11,7 @@ set -u
 SOURCE_DIRS_RE='^({{SOURCE_DIRS_RE}})/'   # e.g. ^(src|backend|frontend)/
 TEST_DIRS="{{TEST_DIRS}}"                 # space-separated, e.g. tests src/__tests__
 VERDICT_DIR="/tmp/{{PROJECT_SLUG}}-verdicts"
+MERGE_POLICY="{{MERGE_POLICY}}"           # never | ask | auto_on_approve
 STATE_FILE="docs/agent/STATE.md"
 BEHAVIORS_FILE="docs/agent/BEHAVIORS.md"
 STATE_SECTION_CAP=3000   # bytes for "## Current focus" — measure the thing you care about
@@ -26,13 +27,24 @@ fi
 
 block() { printf '{"decision":"block","reason":"%s"}\n' "$1"; exit 0; }
 
-# `gh pr merge --admin` bypasses branch protection — never allowed, no in-session override.
-# A plain merge is allowed, so a session can chain PR -> review -> merge -> next task without
-# stalling; whether to merge at all is governed by AGENTS.md (only when the task asked for it).
+# Merge gate. `--admin` bypasses branch protection and is never allowed, under any policy.
+# Past that, the compiled workflow_profile decides: `never` blocks, `ask` falls through to the
+# permission prompt (which is why `Bash(gh pr merge:*)` is deliberately NOT in settings.json's
+# allow list), and `auto_on_approve` needs an APPROVE review marker earned on this exact HEAD.
+# ponytail: the marker proves a review verdict, not green CI — checking `gh pr checks` here would
+# mean a network round-trip on every Bash call. CI-green stays a RUNBOOKS instruction.
 if printf '%s' "$command" | grep -qE '(^|&&|\|\||;)[[:space:]]*gh[[:space:]]+pr[[:space:]]+merge'; then
   printf '%s' "$command" | grep -qE '(^|[[:space:]])--admin([[:space:]=]|$)' \
     && block "gh pr merge --admin bypasses branch protection. Merge without --admin, or ask the user to merge in the GitHub UI."
-  exit 0
+  case "$MERGE_POLICY" in
+    ask) exit 0 ;;
+    auto_on_approve)
+      review_file="$VERDICT_DIR/$(git rev-parse HEAD).review"
+      [ -f "$review_file" ] || block "No review marker for HEAD $(git rev-parse HEAD) — the reviewer writes $review_file after reviewing this exact HEAD. Review first, or ask the user to merge."
+      head -1 "$review_file" | grep -q '^APPROVE' || block "Review marker for HEAD is not APPROVE: $(head -1 "$review_file")"
+      exit 0 ;;
+    *) block "merge_policy is \`${MERGE_POLICY:-never}\` in this project: merging is the user's call. Ask them, or let them merge in the GitHub UI." ;;
+  esac
 fi
 
 # Match `gh pr create` as a command target (start of string or after a shell operator),
