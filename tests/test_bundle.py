@@ -680,8 +680,10 @@ class ProfileScenarioTests(unittest.TestCase):
             script = Path(directory) / "require-verdict.sh"
             script.write_text(filled)
             blocked = ("gh pr merge 1", "PAGER=cat gh pr merge 1", "env gh pr merge 1",
-                       "command gh pr merge 1", "A=1 B=2 gh pr merge 1", "true && PAGER=cat gh pr merge 1")
-            allowed = ("ls -la", "git commit -m 'note about gh pr merge later'", "echo gh pr create")
+                       "command gh pr merge 1", "sudo gh pr merge 1", "A=1 B=2 gh pr merge 1",
+                       "true && PAGER=cat gh pr merge 1", "ls | gh pr merge 1", "x=1\ngh pr merge 1")
+            allowed = ("ls -la", "git commit -m 'note about gh pr merge later'", "echo gh pr create",
+                       "gh pr list | grep 'gh pr merge'")
             for command in blocked + allowed:
                 payload = json.dumps({"tool_input": {"command": command}})
                 result = subprocess.run(["bash", str(script)], input=payload, cwd=directory, text=True, capture_output=True)

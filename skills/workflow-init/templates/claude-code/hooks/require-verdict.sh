@@ -31,7 +31,10 @@ block() { printf '{"decision":"block","reason":"%s"}\n' "$1"; exit 0; }
 # `env`, or `command` prefix — `PAGER=cat gh pr merge` is still a merge, and a gate that
 # misses it is a gate. Anchored so a mention inside a commit message or a comment body,
 # which is preceded by a quote or a word character, never trips it.
-CMD_START='(^|&&|\|\||;|\()[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*((env|command)[[:space:]]+)*'
+# Ceiling: this guards habit, not an adversary. A deliberately obfuscated `bash -c "gh pr …"`
+# or `$(echo gh) pr merge` still gets through, and no regex fixes that — an agent evading its
+# own guardrail has already left the workflow the guardrail exists to enforce.
+CMD_START='(^|&&|\||;|\()[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*((env|command|sudo)[[:space:]]+)*'
 
 # Merge gate. `--admin` bypasses branch protection and is never allowed, under any policy.
 # Past that, the compiled workflow_profile decides: `never` blocks, `ask` falls through to the
