@@ -48,7 +48,9 @@ Steps:
 7. **If the merge gate is set to `auto_on_approve`**, write the marker it reads (the one permitted
    write, outside the repo tree):
    `mkdir -p /tmp/{{PROJECT_SLUG}}-verdicts && printf '%s\n%s\n' '<APPROVE or REQUEST-CHANGES: …>' '<one-line reason>' > /tmp/{{PROJECT_SLUG}}-verdicts/$(git rev-parse HEAD).review`
-   Run `$(git rev-parse HEAD)` as written — never hand-type or abbreviate the sha. Write it for
+   Run `$(git rev-parse HEAD)` as written — never hand-type or abbreviate the sha, and make sure
+   the checkout is the PR's head commit, because that is the sha the merge gate resolves and
+   looks for. Write it for
    every verdict, not only APPROVE: a REQUEST-CHANGES marker is what stops the merge on the right
    sha rather than leaving the gate waiting on a file that never arrives.
 

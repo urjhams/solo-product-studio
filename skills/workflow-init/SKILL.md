@@ -188,15 +188,16 @@ skill — that skill writes the same file, so a project using both gets one spec
 
    *`auto_on_approve`* — `{{MERGE_POLICY_TEXT}}`:
    ```
-   **Merge once the review approves.** The hook requires an `APPROVE` marker at
-   `/tmp/{{PROJECT_SLUG}}-verdicts/<HEAD sha>.review`, written by the reviewer that actually read
-   that HEAD — never write one for a commit nobody reviewed. Gate 2 closed and CI green are still
+   **Merge once the review approves.** The hook resolves the head commit of the PR being merged
+   and requires an `APPROVE` marker at `/tmp/{{PROJECT_SLUG}}-verdicts/<that sha>.review`, written
+   by the reviewer that actually read it — never write one for a commit nobody reviewed, and a
+   marker from another commit authorizes nothing. Gate 2 closed and CI green are still
    yours to confirm; the hook checks the marker, not the pipeline. `gh pr merge --admin` is never
    an option and the hook blocks it — branch protection is there by intent.
    ```
    *`auto_on_approve`* — `{{MERGE_POLICY_LINE}}`:
    ```
-   allowed once the HEAD's review marker says APPROVE, Gate 2 is closed, and CI is green.
+   allowed once the PR head's review marker says APPROVE, Gate 2 is closed, and CI is green.
    ```
 
 5. **Instantiate the agents** (agents module). Fill every field with **static** content only — no

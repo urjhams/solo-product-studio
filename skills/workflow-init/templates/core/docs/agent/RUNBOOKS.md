@@ -138,7 +138,7 @@ by the `gh pr merge` branch of `.claude/hooks/require-verdict.sh`, not by this p
 |---|---|
 | `never` | The hook blocks every merge. Say the PR is ready and let the user merge. |
 | `ask` | `gh pr merge` is not pre-approved, so it raises a permission prompt. Merging without being asked to is still out of bounds — the prompt is a backstop, not the decision. |
-| `auto_on_approve` | The hook requires `/tmp/{{PROJECT_SLUG}}-verdicts/<HEAD sha>.review` with `APPROVE` on its first line. Offline lane: the `<area>-reviewer` writes it. Online lane: write it yourself **only** after reading the Actions review comment, quoting that comment's verdict line. Never write a marker for a HEAD nobody reviewed. |
+| `auto_on_approve` | The hook resolves the head commit of the PR being merged (`gh pr view --json headRefOid`) and requires `/tmp/{{PROJECT_SLUG}}-verdicts/<that sha>.review` with `APPROVE` on its first line — a marker earned on a different commit authorizes nothing. Offline lane: the `<area>-reviewer` writes it while checked out at the PR head. Online lane: write it yourself **only** after reading the Actions review comment, quoting that comment's verdict line. Never write a marker for a commit nobody reviewed. |
 
 Before merging under any policy: Gate 2 closed (every finding triaged, fixes pushed, resolutions
 posted) and CI green — the hook checks the review marker, not the pipeline, so the pipeline is on

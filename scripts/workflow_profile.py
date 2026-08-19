@@ -181,6 +181,11 @@ def compile_profile(mode: str, overrides: dict[str, Any] | None = None) -> dict[
         raise ValueError(f"invalid review.lane: {profile['review']['lane']}")
     if profile["review"]["independent_required"] and profile["review"]["lane"] == "none":
         raise ValueError("review.independent_required needs a lane: set review.lane to offline or online")
+    if not profile["review"]["independent_required"] and profile["review"]["lane"] != "none":
+        raise ValueError(
+            "review.lane needs review.independent_required: a lane with no requirement behind it "
+            "scaffolds a reviewer the profile says is unnecessary"
+        )
 
     # Stamped last so no override can forge either.
     return {"version": VERSION, "mode": mode, **profile}

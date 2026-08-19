@@ -681,14 +681,39 @@ class ProfileScenarioTests(unittest.TestCase):
             script.write_text(filled)
             blocked = ("gh pr merge 1", "PAGER=cat gh pr merge 1", "env gh pr merge 1",
                        "command gh pr merge 1", "sudo gh pr merge 1", "A=1 B=2 gh pr merge 1",
-                       "true && PAGER=cat gh pr merge 1", "ls | gh pr merge 1", "x=1\ngh pr merge 1")
+                       "true && PAGER=cat gh pr merge 1", "ls | gh pr merge 1", "echo hi & gh pr merge 1",
+                       "(gh pr merge 1)", "x=1\ngh pr merge 1")
+            # Quoted text is blanked before matching, so the orchestrator can still post the
+            # review and open a PR whose body describes the merge flow.
             allowed = ("ls -la", "git commit -m 'note about gh pr merge later'", "echo gh pr create",
-                       "gh pr list | grep 'gh pr merge'")
+                       "gh pr list | grep 'gh pr merge'",
+                       'gh pr comment 1 --body "do not (gh pr merge) yet"',
+                       'gh pr comment 1 --body "next step; gh pr merge"')
             for command in blocked + allowed:
                 payload = json.dumps({"tool_input": {"command": command}})
                 result = subprocess.run(["bash", str(script)], input=payload, cwd=directory, text=True, capture_output=True)
                 with self.subTest(command=command):
                     self.assertEqual('"decision":"block"' in result.stdout, command in blocked, result.stdout)
+                    if result.stdout.strip():
+                        # A hook whose stdout does not parse is not a block. This is the
+                        # inversion that let a REQUEST-CHANGES marker permit a merge.
+                        json.loads(result.stdout)
+
+    def test_block_reason_stays_parseable_json_with_hostile_marker_text(self):
+        """The reviewer writes the marker's first line as prose; a bare quote must not void the block."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        filled = (hook
+                  .replace("{{SOURCE_DIRS_RE}}", "src").replace("{{TEST_DIRS}}", "")
+                  .replace("{{PROJECT_SLUG}}", "gate-json").replace("{{DEFAULT_BRANCH}}", "main")
+                  .replace("{{MERGE_POLICY}}", 'REQUEST-CHANGES: unescaped "quote" and \\ backslash'))
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "require-verdict.sh"
+            script.write_text(filled)
+            payload = json.dumps({"tool_input": {"command": "gh pr merge 1"}})
+            result = subprocess.run(["bash", str(script)], input=payload, cwd=directory, text=True, capture_output=True)
+            decision = json.loads(result.stdout)
+            self.assertEqual(decision["decision"], "block")
+            self.assertIn("quote", decision["reason"])
 
     def test_gate_three_has_the_qa_agent_it_tells_you_to_spawn(self):
         init = ROOT / "skills/workflow-init"
