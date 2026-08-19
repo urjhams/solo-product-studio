@@ -160,7 +160,9 @@ skill — that skill writes the same file, so a project using both gets one spec
    ```
 
    **Merge-policy fills.** Copy the pair matching the policy; do not paraphrase. `{{MERGE_POLICY}}`
-   is the bare enum value in both the hook and the RUNBOOKS Merge section.
+   is the bare enum value in both the hook and the RUNBOOKS Merge section. The `auto_on_approve`
+   text carries a nested `{{PROJECT_SLUG}}` — paste the fill first, substitute after, or step 6's
+   grep is the only thing between you and a placeholder shipped verbatim.
 
    *`never`* — `{{MERGE_POLICY_TEXT}}`:
    ```
@@ -205,8 +207,9 @@ skill — that skill writes the same file, so a project using both gets one spec
      `.claude/agents/<area>-reviewer.md`, filling `{{AREA}}`, `{{AREA_STACK}}`, `{{AREA_PATHS}}`,
      `{{AREA_STANDARDS_DOC}}`, `{{PROJECT_SLUG}}`. Delete the template copy after.
    - **QA agent**: rename `.claude/agents/_qa-agent.template.md` to `.claude/agents/qa-agent.md`
-     and fill it from the stack you detected in step 1 — this is Gate 3's agent, and the reason it
-     is a template is that "run the app and look at it" means something different per platform:
+     and fill `{{QA_SURFACE}}`, `{{QA_RUN_CMD}}`, `{{QA_TOOLING}}`, `{{PROJECT_SLUG}}` from the
+     stack you detected in step 1 — this is Gate 3's agent, and the reason it is a template is
+     that "run the app and look at it" means something different per platform:
 
      | Surface | `{{QA_RUN_CMD}}` | `{{QA_TOOLING}}` |
      |---|---|---|
