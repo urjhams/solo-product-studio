@@ -682,7 +682,10 @@ class ProfileScenarioTests(unittest.TestCase):
             blocked = ("gh pr merge 1", "PAGER=cat gh pr merge 1", "env gh pr merge 1",
                        "command gh pr merge 1", "sudo gh pr merge 1", "A=1 B=2 gh pr merge 1",
                        "true && PAGER=cat gh pr merge 1", "ls | gh pr merge 1", "echo hi & gh pr merge 1",
-                       "(gh pr merge 1)", "x=1\ngh pr merge 1")
+                       "(gh pr merge 1)", "x=1\ngh pr merge 1",
+                       # Blanking quotes must not let a real merge hide behind one.
+                       'gh pr merge 1 --subject "fix: it"', 'echo "a; b" ; gh pr merge 1',
+                       'echo "unclosed ; gh pr merge 1', 'echo "a ; gh pr merge 1" ; gh pr merge 2')
             # Quoted text is blanked before matching, so the orchestrator can still post the
             # review and open a PR whose body describes the merge flow.
             allowed = ("ls -la", "git commit -m 'note about gh pr merge later'", "echo gh pr create",
