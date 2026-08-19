@@ -58,7 +58,7 @@ Cumulative, and never cuttable. An override may add entries; nothing removes one
 | Every gate in the CI ladder runs on PR and default-branch push | `testing.ci_required` | **ci-enforced** — the generated workflow |
 | Behavior coverage: every active `BH-###` has a test naming it | `testing.automated_required` | **ci-enforced** — the generated coverage hook |
 | The agent may merge its own PR | `development.merge_policy` | **ci-enforced** — the generated verdict hook's `gh pr merge` gate, plus the deliberate absence of a `gh pr merge` allow entry |
-| Where the independent review runs | `review.lane` | **ci-enforced** — the generated RUNBOOKS Gate 2 fill, and the `ci-review` workflow on the online lane |
+| Where the independent review runs | `review.lane` | **ci-enforced** on the online lane — the generated `claude-review.yml` runs and posts itself. Advisory on the offline lane: spawning the local reviewer is a RUNBOOKS instruction with no mechanism behind it |
 | A refactor step follows green | `development.refactor_phase` | advisory |
 | Coverage target | `testing.coverage_target` | advisory |
 
