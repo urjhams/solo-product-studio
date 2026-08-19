@@ -42,8 +42,11 @@ BUNDLE SIZE      (if applicable)
 Ready for review
 ```
 
-**No gate can be skipped.** Lint fails -> fix lint, don't disable the rule. A test fails -> fix the
-code, don't skip the test. The fixed ordering matters: cheap, fast checks (lint, types) run before
+**No applicable gate can be skipped.** Which gates apply comes from the compiled workflow profile —
+a Prototype or Hackathon build runs no CI at all (`testing.ci_required: false`), and a repository
+with no type system has no type check. That is the only permitted way for a gate to be absent.
+Once a gate applies it is non-negotiable: lint fails -> fix lint, don't disable the rule. A test
+fails -> fix the code, don't skip the test. The fixed ordering matters: cheap, fast checks (lint, types) run before
 expensive ones (integration, e2e) so a trivial mistake fails in seconds, not minutes.
 
 This is the depth behind `docs/agent/CARD.md` step 9 (Gate 1, task-evaluator) and step 11 (Gate 2,

@@ -29,6 +29,8 @@ Components: {{STACKS}}
 5. **Flag deviation from settled practice.** Say so when a request departs from industry practice
    or this repo's own precedent, and why.
 
+{{MODE_POLICY}}
+
 ## Agent memory bank
 
 Read at the trigger, not per turn:
@@ -58,7 +60,7 @@ one can be found.
   ambiguity is a question for the user, not a guess. Then write the tests failing, each naming the
   `BH-###` it proves, and implement until green.
 - **Explain every command before running it** — one plain-language line.
-- **Finishing a task = opening its PR** — skipping the PR is what needs an explicit ask.
+- {{PR_POLICY}}
   Gates + review flow: [`docs/agent/RUNBOOKS.md`](docs/agent/RUNBOOKS.md#pr-flow).
 - **Merge only when the task said to.** `gh pr merge` runs unprompted so a session can chain
   PR → review → merge → next task, which makes this instruction the only gate: no "the PR looks

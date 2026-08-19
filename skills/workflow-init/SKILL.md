@@ -19,6 +19,24 @@ skill — that skill writes the same file, so a project using both gets one spec
 
 ## Procedure
 
+0. **Read `.product-studio/project.json` if it exists.** Its `workflow_profile` block is the
+   compiled result of an intake that already happened — it answers most of step 2, and re-asking
+   what it decided is how a four-hour demo ends up with a production workflow. No file, or no
+   `workflow_profile` in it → run step 2 as written. This skill stays usable standalone; the
+   profile is an input it prefers, not one it requires.
+
+   | profile field | what it decides here |
+   |---|---|
+   | `testing.ci_required` | whether `ci` is in `--modules`; `init.sh` then picks the full ladder over the stub |
+   | `review.independent_required` | the review-lane question — `false` means no reviewer lane and no `ci-review` |
+   | `development.pull_request_required` | the `{{PR_POLICY}}` fill, and whether `claude-code` (the verdict hook) is worth installing |
+   | `planning.spec_gate` | CARD step 2 — `warn` makes the ambiguity rule advisory instead of blocking |
+   | `risk_tier` | whether `engineering` is included, and whether the security and observability checklists are optional |
+   | `delivery_target` | CI triggers, and whether a release section belongs in the generated docs at all |
+   | `safety_floor` and `revisit_when` | the `{{MODE_POLICY}}` fill |
+
+   Pass the path explicitly with `init.sh --profile <file>` when the state lives outside `--dest`.
+
 1. **Detect before asking.** In the target project root check: git repo? existing
    `AGENTS.md`/`CLAUDE.md`/`docs/agent/` (never overwrite — the script skips existing files;
    note collisions to the user)? Stack markers: `package.json`, `pyproject.toml`/`requirements*.txt`,
@@ -68,6 +86,8 @@ skill — that skill writes the same file, so a project using both gets one spec
      `` `<paths>` → `<area>-reviewer` `` (it lives inside the offline `{{REVIEW_LANE_STEPS}}` text)
    - `{{REVIEW_LANE}}` (CARD step 11) and `{{REVIEW_LANE_STEPS}}` (RUNBOOKS Gate 2, steps 2–3) —
      paste the block for the lane chosen in step 2, verbatim, from "Review-lane fills" below.
+   - `{{PR_POLICY}}` (AGENTS.md, CARD step 10) and `{{MODE_POLICY}}` (AGENTS.md) — paste from
+     "Profile fills" below. With no profile, use the durable fill; it is today's behavior.
 
    **Review-lane fills.** Copy one pair; do not paraphrase.
 
@@ -90,6 +110,32 @@ skill — that skill writes the same file, so a project using both gets one spec
    reviewer. Wait for it (`gh pr checks --watch`), then triage every finding, apply valid fixes,
    run affected tests, commit + push, post resolutions.
    ```
+
+   **Profile fills.** Copy one; do not paraphrase.
+
+   *Durable* (`development.pull_request_required: true`, or no profile) — `{{PR_POLICY}}`:
+   ```
+   **Finishing a task = opening its PR** — skipping the PR is what needs an explicit ask.
+   ```
+   *Fast* (`pull_request_required: false` — Prototype, Hackathon) — `{{PR_POLICY}}`:
+   ```
+   **Git is a recovery mechanism here, not a review gate.** Commit often so a bad ten minutes
+   costs ten minutes; a PR is optional unless the team's own workflow needs one.
+   ```
+
+   `{{MODE_POLICY}}` — write the block from the profile, or delete the placeholder when there is
+   no profile:
+   ```
+   ## Operating mode
+
+   Mode: <mode> · risk tier: <risk_tier> · delivery target: <delivery_target>
+
+   Non-negotiable regardless of timebox — these are the safety floor and nothing removes them:
+   - <one line per safety_floor entry>
+
+   Revisit this mode when: <revisit_when>
+   ```
+
    *Online* — `{{REVIEW_LANE_STEPS}}`:
    ```
    2. **The review runs in Actions** — `.github/workflows/claude-review.yml`, on PR open and on
@@ -120,6 +166,9 @@ skill — that skill writes the same file, so a project using both gets one spec
 - **The review flow is owned by the project**, in one of two lanes — a local reviewer subagent, or
   the repo's own Actions workflow. Neither depends on a third-party review bot, and both end the
   same way: triage every finding → fix → push → post resolutions, one bounded re-review.
+- **The profile decides which rules apply; it never weakens the ones that do.** A fast mode drops
+  the independent reviewer and the CI ladder. It does not drop the safety floor, input validation,
+  or secret hygiene — those are constant across every mode by construction.
 - **A rule with no mechanism is a suggestion**: the card is hook-injected, the evaluator verdict
   is hook-enforced, the STATE cap is measured in bytes, and behavior coverage is a grep. Keep
   mechanisms when adapting.

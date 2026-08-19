@@ -82,10 +82,16 @@ It then asks the decisions that matter, highest impact first, each with a recomm
 
 ## Mode-aware paths
 
-The skill separates product stage from operating mode.
+The skill separates product stage from operating mode — and the mode is not a label. The confirmed intake answers compile into a `workflow_profile`, and every gate downstream reads that profile: whether an open ambiguity blocks the brief, whether an independent reviewer is required, how many behaviors the spec may carry, which CI ladder gets generated, whether a PR is expected per task, and whether a deployment may be planned at all. A four-hour demo and a regulated migration stop inheriting the same machinery.
+
+```bash
+python3 scripts/workflow_profile.py --mode hackathon   # what a mode actually compiles to
+```
+
+What no mode relaxes is the safety floor: secrets out of the repository, no production data, input validation on any path that can crash, least-privilege permissions, and an explicit mock/real boundary. Deployment is opt-in and off by default in every mode, production included. See `skills/product-studio/references/workflow-profile.md`.
 
 - **Prototype Mode**: super-fast MVP to validate an idea. One flow, minimum scope, mock data everywhere (boundary confirmed with you), fastest track to a clickable app, minimum tests, throwaway by design.
-- **Hackathon Mode**: fast MVP, one core flow, mock-first, impressive wow moment, demo script, strict cuts.
+- **Hackathon Mode**: fast MVP, one core flow, mock-first, impressive wow moment, demo script, strict cuts. Compiles to a warn-only spec gate capped at nine behaviors, no CI, no independent review, one high-signal automated check, and a rehearsed fallback.
 - **Indie App Mode**: narrow paid wedge, one-person maintainability, simple distribution, early payment validation.
 - **SaaS Mode**: buyer/user distinction, workflow ROI, repeat usage, roles and billing considered without premature platform overbuilding.
 - **Startup Mode**: beachhead segment, retention, distribution, unit economics, defensibility, and expansion path.
@@ -192,13 +198,13 @@ When the user approves a workflow, the skill stores state in the active reposito
 
 ```text
 .product-studio/
-├── project.yaml
+├── project.json
 ├── artifacts/
 ├── research/
 └── github/
 ```
 
-State contains the selected mode, stage, constraints, capabilities, assumptions, decisions, approvals, and next gate. Artifacts are Markdown and include Product Opportunity Brief, Evidence Pack, Design Contract, Behavior Spec, MVP Build Plan, MVP Review Report, Updated Product Definition, Production Build Blueprint, GitHub Delivery Plan, the final Implementation Brief, and any Re-evaluation Verdict.
+State contains the selected mode, the **compiled workflow profile**, stage, constraints, capabilities, assumptions, decisions, approvals, and next gate. `scripts/workflow_runner.py` is its only writer, so the file the deterministic runner operates on and the file the skill calls canonical are the same file. Artifacts are Markdown and include Product Opportunity Brief, Evidence Pack, Design Contract, Behavior Spec, MVP Build Plan, MVP Review Report, Updated Product Definition, Production Build Blueprint, GitHub Delivery Plan, the final Implementation Brief, and any Re-evaluation Verdict.
 
 The Behavior Spec is the one artifact that also lives outside `.product-studio/`. It is mirrored byte-for-byte to `docs/agent/BEHAVIORS.md` so it is tracked in git beside the code, and so an implementing agent, a reviewer, or CI can read it without knowing this skill exists. `scripts/validate_behavior_spec.py <canonical> --mirror docs/agent/BEHAVIORS.md` keeps the two honest.
 
@@ -209,6 +215,8 @@ Initialize state manually when useful:
 ```bash
 python3 scripts/init_project.py "City Travel MVP" --stage idea --mode hackathon
 ```
+
+`--mode` accepts only the seven known modes, and the file it writes is `.product-studio/project.json` with the compiled profile inside it.
 
 Resume by invoking `product-studio` again. It reads the state, summarizes completed artifacts, and continues from the next incomplete gate without repeating intake.
 

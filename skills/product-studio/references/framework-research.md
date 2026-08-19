@@ -26,7 +26,7 @@ Use available web research, GitHub connector, or `gh` CLI only after capability 
 
 ## Persistence model
 
-Project state is local YAML at `.product-studio/project.yaml`; artifacts are Markdown. No database or hosted backend is required.
+Project state is local YAML at `.product-studio/project.json`; artifacts are Markdown. No database or hosted backend is required.
 
 ## Testing approach
 

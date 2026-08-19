@@ -12,7 +12,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
 sys.path.insert(0, str(ROOT / "scripts"))
-from workflow_runner import attach_behavior_spec, attach_final_brief, begin_phase, can_handoff, checkpoint, new_state, record_review  # noqa: E402
+from workflow_runner import attach_behavior_spec, attach_final_brief, begin_phase, can_finish, can_handoff, checkpoint, deploy, mark_implementation_done, new_state, record_answer, record_review, save  # noqa: E402
+import workflow_profile  # noqa: E402
+from validate_behavior_spec import validate as validate_spec  # noqa: E402
+from validate_implementation_brief import validate as validate_brief  # noqa: E402
 from workbench_adapter import detect, publish_local  # noqa: E402
 
 
@@ -38,16 +41,19 @@ class BundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             result = self.run_script("init_project.py", "Test App", "--directory", directory, "--mode", "hackathon")
             self.assertEqual(result.returncode, 0, result.stderr)
-            state = Path(directory) / ".product-studio" / "project.yaml"
-            self.assertTrue(state.exists())
-            self.assertIn("mode: hackathon", state.read_text())
-            self.assertIn("house_rules:", state.read_text())
-            self.assertIn("current_phase: intake", state.read_text())
-            self.assertIn("phases:", state.read_text())
-            self.assertIn("approval_status: pending", state.read_text())
-            self.assertIn("last_checkpoint: null", state.read_text())
-            self.assertIn("final_planning:", state.read_text())
-            self.assertTrue((state.parent / "artifacts").is_dir())
+            path = Path(directory) / ".product-studio" / "project.json"
+            self.assertTrue(path.exists())
+            state = json.loads(path.read_text())
+            self.assertEqual(state["project"]["mode"], "hackathon")
+            self.assertEqual(state["project"]["name"], "Test App")
+            self.assertEqual(state["workflow_profile"], workflow_profile.compile_profile("hackathon"))
+            self.assertEqual(state["session"]["current_phase"], "intake")
+            self.assertEqual(state["session"]["approval_status"], "pending")
+            self.assertIsNone(state["session"]["last_checkpoint"])
+            self.assertIn("house_rules", state)
+            self.assertIn("final_planning", state)
+            self.assertTrue(state["phases"]["specify"]["done_bar"])
+            self.assertTrue((path.parent / "artifacts").is_dir())
 
     def test_install_and_uninstall_are_scoped(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -150,15 +156,18 @@ class BundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             result = self.run_script("init_project.py", "A: #1 \"idea\"", "--directory", directory)
             self.assertEqual(result.returncode, 0, result.stderr)
-            state = (Path(directory) / ".product-studio" / "project.yaml").read_text()
-            self.assertIn('name: "A: #1 \\"idea\\""', state)
+            state = json.loads((Path(directory) / ".product-studio" / "project.json").read_text())
+            self.assertEqual(state["project"]["name"], 'A: #1 "idea"')
 
-    def test_capabilities_can_be_persisted(self):
+    def test_capabilities_persist_without_clobbering_state(self):
         with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory) / ".product-studio" / "project.yaml"
-            result = self.run_script("discover_capabilities.py", "--project", str(state))
+            self.run_script("init_project.py", "Test App", "--directory", directory, "--mode", "saas")
+            path = Path(directory) / ".product-studio" / "project.json"
+            result = self.run_script("discover_capabilities.py", "--project", str(path))
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("capability_registry_json", state.read_text())
+            state = json.loads(path.read_text())
+            self.assertIn("integrations", state["capabilities"])
+            self.assertEqual(state["workflow_profile"]["mode"], "saas")
 
     def test_original_lifecycle_scenarios_have_explicit_coverage(self):
         skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
@@ -334,6 +343,15 @@ class BundleTests(unittest.TestCase):
                 self.assertIn(phrase, prototype.lower())
         self.assertIn("Prototype", modes)
 
+    def test_hackathon_mode_rules_are_explicit(self):
+        hackathon = (ROOT / "skills/product-studio/references/hackathon-mode.md").read_text().lower()
+        for phrase in ["hero moment", "demo script", "fallback", "mock", "cut", "high-signal"]:
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, hackathon)
+        # The refinement that distinguishes it from Prototype's "one runnable check".
+        self.assertIn("integration smoke test", hackathon)
+        self.assertIn("Hackathon", (ROOT / "skills/product-studio/references/done-bars.md").read_text())
+
     def test_prototype_mode_clears_checkpoint_on_self_review(self):
         state = new_state("demo", mode="prototype")
         begin_phase(state, "mvp")
@@ -352,17 +370,67 @@ class BundleTests(unittest.TestCase):
         checkpoint(state, "product")
         self.assertEqual(state["session"]["next_action"], "begin-research")
 
-    def test_final_planning_checkpoint_blocks_unverified_or_missing_brief(self):
+    def test_final_planning_checkpoint_blocks_a_missing_or_malformed_brief(self):
         state = new_state("demo")
         begin_phase(state, "final_planning")
         record_review(state, "final_planning", "independent", True, [])
         checkpoint(state, "final_planning")
         self.assertEqual(state["final_planning"]["approval_status"], "blocked")
         self.assertFalse(can_handoff(state))
-        attach_final_brief(state, "08-implementation-brief.md", ["07-production-blueprint.md"], [{"check": "tests pass", "evidence": "tests/output.txt", "owner": "implementation", "status": "unresolved"}])
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 6, 0, True)
+        for check, reason in (
+            ({"check": "tests pass", "evidence": "tests/output.txt", "status": "unresolved"}, "verification-owner-missing"),
+            ({"check": "tests pass", "evidence": "tests/output.txt", "owner": "implementation", "status": "probably"}, "verification-status-invalid"),
+            ({"check": "", "evidence": "tests/output.txt", "owner": "implementation", "status": "unresolved"}, "verification-check-description-missing"),
+        ):
+            with self.subTest(reason=reason):
+                attach_final_brief(state, "08-implementation-brief.md", ["07-production-blueprint.md"], [check])
+                checkpoint(state, "final_planning")
+                self.assertEqual(state["session"]["next_action"], reason)
+                self.assertFalse(can_handoff(state))
+
+    def test_brief_with_pending_implementation_checks_hands_off_but_cannot_finish(self):
+        # The stopping conditions in a brief are future conditions by construction.
+        # Requiring them satisfied before handoff would only let finished work hand off.
+        state = new_state("demo")
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 6, 0, True)
+        begin_phase(state, "final_planning")
+        attach_final_brief(state, "08-implementation-brief.md", ["04-mvp-build-plan.md"], [{"check": "the core-flow test passes", "evidence": "tests/core/", "owner": "implementation", "status": "unresolved"}])
+        record_review(state, "final_planning", "independent", True, [])
         checkpoint(state, "final_planning")
+        self.assertEqual(state["final_planning"]["approval_status"], "approved")
+        self.assertTrue(can_handoff(state))
+        self.assertFalse(can_finish(state))
+        mark_implementation_done(state)
         self.assertEqual(state["session"]["next_action"], "verification-checks-unresolved")
+        self.assertFalse(can_finish(state))
+        state["final_planning"]["verification"]["do_not_finish_until"][0]["status"] = "passed"
+        mark_implementation_done(state)
+        self.assertTrue(can_finish(state))
+        self.assertEqual(state["final_planning"]["verification"]["unresolved"], [])
+
+    def test_user_owned_checks_block_handoff(self):
+        # A decision only the user can make is a missing input, not a future condition.
+        state = new_state("demo")
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 6, 0, True)
+        begin_phase(state, "final_planning")
+        attach_final_brief(state, "08-implementation-brief.md", ["04-mvp-build-plan.md"], [{"check": "user picks the pricing tier", "evidence": "session decision D-004", "owner": "user", "status": "unresolved"}])
+        record_review(state, "final_planning", "independent", True, [])
+        checkpoint(state, "final_planning")
+        self.assertEqual(state["session"]["next_action"], "user-decisions-unresolved")
         self.assertFalse(can_handoff(state))
+
+    def test_evidence_placeholder_is_rejected_in_any_wording(self):
+        for evidence, blocks in (("To be supplied", True), ("TBD", True), ("", True), ("  n/a ", True), ("none.", True), ("tests/output.txt", False)):
+            with self.subTest(evidence=evidence):
+                state = new_state("demo")
+                attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 6, 0, True)
+                begin_phase(state, "final_planning")
+                attach_final_brief(state, "08-implementation-brief.md", ["04-mvp-build-plan.md"], [{"check": "tests pass", "evidence": evidence, "owner": "implementation", "status": "unresolved"}])
+                record_review(state, "final_planning", "independent", True, [])
+                checkpoint(state, "final_planning")
+                self.assertEqual(state["session"]["next_action"] == "verification-evidence-source-missing", blocks)
+                self.assertEqual(can_handoff(state), not blocks)
 
     def test_final_planning_checkpoint_allows_verified_independent_handoff(self):
         state = new_state("demo")
@@ -374,6 +442,8 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(state["final_planning"]["approval_status"], "approved")
         self.assertTrue(can_handoff(state))
         self.assertEqual(state["session"]["next_action"], "offer-completion-actions")
+        mark_implementation_done(state)
+        self.assertTrue(can_finish(state))
 
     def test_specify_checkpoint_blocks_until_ambiguities_are_closed(self):
         state = new_state("demo")
@@ -447,3 +517,212 @@ class BundleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProfileScenarioTests(unittest.TestCase):
+    """Scenarios, not phrases. Each drives the runner and asserts the gates a mode claims."""
+
+    def run_script(self, name: str, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([PYTHON, str(ROOT / "scripts" / name), *args], cwd=ROOT, text=True, capture_output=True)
+
+    def _brief(self, state, checks=None):
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 6, 0, True)
+        begin_phase(state, "final_planning")
+        attach_final_brief(state, "08-implementation-brief.md", ["04-mvp-build-plan.md"],
+                           checks or [{"check": "the hero-moment test passes", "evidence": "tests/core/", "owner": "implementation", "status": "unresolved"}])
+        return state
+
+    def test_four_hour_hackathon_reaches_implementation_on_a_self_review(self):
+        state = new_state("citytravel", "hackathon")
+        # A spec left deliberately unclosed inside the timebox warns; it does not block.
+        begin_phase(state, "specify")
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 6, 2, False)
+        record_review(state, "specify", "self", True, [])
+        checkpoint(state, "specify")
+        self.assertEqual(state["phases"]["specify"]["status"], "checkpointed")
+        self.assertIn("hackathon-warning", state["phases"]["specify"]["result"])
+        # One high-signal check, still pending, still hands off.
+        self._brief(state)
+        record_review(state, "final_planning", "self", True, [])
+        checkpoint(state, "final_planning")
+        self.assertEqual(state["final_planning"]["approval_status"], "approved")
+        self.assertTrue(can_handoff(state))
+        self.assertFalse(can_finish(state))
+
+    def test_prototype_exit_and_revisit_behavior_is_unchanged(self):
+        profile = workflow_profile.compile_profile("prototype")
+        self.assertEqual(profile["planning"]["spec_gate"], "warn")
+        self.assertFalse(profile["review"]["independent_required"])
+        self.assertEqual(profile["revisit_when"], "the validation question is answered")
+        state = new_state("demo", "prototype")
+        begin_phase(state, "specify")
+        attach_behavior_spec(state, "behavior-spec.md", "docs/agent/BEHAVIORS.md", 4, 3, False)
+        record_review(state, "specify", "self", True, [])
+        checkpoint(state, "specify")
+        self.assertIn("prototype-warning", state["phases"]["specify"]["result"])
+
+    def test_durable_modes_require_gates_and_never_auto_deploy(self):
+        for mode in ("indie", "saas", "startup"):
+            with self.subTest(mode=mode):
+                profile = workflow_profile.compile_profile(mode)
+                self.assertTrue(profile["review"]["independent_required"])
+                self.assertTrue(profile["testing"]["ci_required"])
+                self.assertEqual(profile["planning"]["spec_gate"], "block")
+                self.assertFalse(profile["deployment"]["allowed"])
+                # A self review is honestly reported, never silently promoted.
+                state = new_state("app", mode)
+                begin_phase(state, "mvp")
+                record_review(state, "mvp", "self", True, [])
+                checkpoint(state, "mvp")
+                self.assertEqual(state["session"]["approval_status"], "self_review_only")
+                self.assertNotEqual(state["phases"]["mvp"]["status"], "checkpointed")
+
+    def test_production_requires_security_observability_rollout_rollback_and_approval(self):
+        profile = workflow_profile.compile_profile("production")
+        for control in ("security-review", "observability", "rollout-plan", "rollback-plan", "human-approval-gate"):
+            self.assertIn(control, profile["safety_floor"])
+        self.assertEqual(profile["design"]["gate"], "evidence_required")
+        self.assertFalse(profile["deployment"]["allowed"])
+        # A complete design artifact is not enough at this risk tier.
+        state = new_state("platform", "production")
+        begin_phase(state, "design")
+        record_review(state, "design", "independent", True, [])
+        checkpoint(state, "design")
+        self.assertEqual(state["session"]["next_action"], "design-evidence-missing")
+        state["design"]["evidence"] = ["clickable prototype, 3 participants"]
+        checkpoint(state, "design")
+        self.assertEqual(state["phases"]["design"]["status"], "checkpointed")
+
+    def test_deployment_is_an_explicit_transition_with_preconditions(self):
+        state = new_state("platform", "production")
+        deploy(state, "production", environment="prod-us", approver="quan", rollback="revert tag", observability="error rate", thresholds="see ship.md")
+        self.assertEqual(state["session"]["next_action"], "deployment-not-enabled-in-profile")
+        state["workflow_profile"] = workflow_profile.compile_profile("production", {"deployment": {"allowed": True}})
+        deploy(state, "production", environment="prod-us", approver="quan")
+        self.assertIn("deployment-preconditions-missing", state["session"]["next_action"])
+        deploy(state, "production", environment="prod-us", approver="quan", rollback="revert tag", observability="error rate + p95", thresholds="advance <10% delta")
+        self.assertEqual(state["session"]["next_action"], "verify-in-production")
+        self.assertEqual(state["production"]["deployment"]["approver"], "quan")
+
+    def test_deployment_cannot_be_opted_into_below_staging(self):
+        with self.assertRaises(ValueError):
+            workflow_profile.compile_profile("indie", {"deployment": {"allowed": True}})
+
+    def test_safety_floor_cannot_be_overridden_away(self):
+        profile = workflow_profile.compile_profile("saas", {"safety_floor": []})
+        self.assertIn("secrets-out-of-repo", profile["safety_floor"])
+        self.assertIn("authz-per-tenant", profile["safety_floor"])
+
+    def test_high_risk_override_derives_the_design_evidence_gate(self):
+        profile = workflow_profile.compile_profile("indie", {"risk_tier": "high"})
+        self.assertEqual(profile["design"]["gate"], "evidence_required")
+        self.assertIn("human-approval-gate", profile["safety_floor"])
+
+    def test_unknown_mode_is_refused_at_every_entry_point(self):
+        with self.assertRaises(ValueError):
+            workflow_profile.compile_profile("hakathon")
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.run_script("init_project.py", "Typo", "--directory", directory, "--mode", "hakathon")
+            self.assertNotEqual(result.returncode, 0)
+
+    def test_mode_enum_matches_the_schema_and_the_skill(self):
+        schema = json.loads((ROOT / "schemas/project.schema.json").read_text())
+        self.assertEqual(sorted(workflow_profile.MODE_PROFILES), sorted(schema["properties"]["project"]["properties"]["mode"]["enum"]))
+        profile_schema = json.loads((ROOT / "schemas/workflow-profile.schema.json").read_text())
+        self.assertEqual(sorted(workflow_profile.MODE_PROFILES), sorted(profile_schema["properties"]["mode"]["enum"]))
+        self.assertEqual(profile_schema["properties"]["version"]["const"], workflow_profile.VERSION)
+        # Every compiled value is a member of the enum the schema publishes.
+        for mode in workflow_profile.MODE_PROFILES:
+            compiled = workflow_profile.compile_profile(mode)
+            with self.subTest(mode=mode):
+                self.assertIn(compiled["risk_tier"], profile_schema["properties"]["risk_tier"]["enum"])
+                self.assertIn(compiled["delivery_target"], profile_schema["properties"]["delivery_target"]["enum"])
+                self.assertIn(compiled["design"]["gate"], profile_schema["properties"]["design"]["properties"]["gate"]["enum"])
+        table = (ROOT / "skills/product-studio/references/workflow-profile.md").read_text()
+        for mode in workflow_profile.MODE_PROFILES:
+            self.assertIn(mode, table)
+
+    def test_behavior_cap_is_enforced_per_mode(self):
+        # The mode references state a behavior range in prose; this is the mechanism.
+        spec = (ROOT / "docs/examples/spec-hardening.md").read_text()
+        body = spec.split("## BH-014 — Cancel succeeds before packing\n", 1)[1].split("\n\n", 1)[0]
+        with tempfile.TemporaryDirectory() as directory:
+            seven = Path(directory) / "seven.md"
+            seven.write_text(spec)
+            self.assertEqual([e for e in validate_spec(seven, mode="prototype") if "cap" in e], [])
+            eight = Path(directory) / "eight.md"
+            eight.write_text(spec.replace("\n## Ambiguity register", "\n## BH-901 — one behavior too many\n" + body + "\n\n## Ambiguity register", 1))
+            self.assertTrue([e for e in validate_spec(eight, mode="prototype") if "cap" in e])
+            self.assertEqual([e for e in validate_spec(eight, mode="hackathon") if "cap" in e], [])
+            self.assertEqual([e for e in validate_spec(eight, mode="saas") if "cap" in e], [])
+
+    def test_generated_ci_follows_the_profile_and_degrades_without_one(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            emitted = {}
+            for name, mode in (("fast", "hackathon"), ("durable", "saas")):
+                dest = root / name
+                dest.mkdir()
+                self.run_script("init_project.py", name, "--directory", str(dest), "--mode", mode)
+                subprocess.run(["bash", str(ROOT / "skills/workflow-init/scripts/init.sh"), "--dest", str(dest), "--modules", "ci"], check=True, capture_output=True)
+                emitted[name] = (dest / ".github/workflows/ci.yml").read_text()
+            # no product-studio state at all: workflow-init must still work, and match the stub
+            bare = root / "bare"
+            bare.mkdir()
+            subprocess.run(["bash", str(ROOT / "skills/workflow-init/scripts/init.sh"), "--dest", str(bare), "--modules", "ci"], check=True, capture_output=True)
+            emitted["bare"] = (bare / ".github/workflows/ci.yml").read_text()
+
+        self.assertEqual(emitted["fast"], emitted["bare"])
+        self.assertNotEqual(emitted["fast"], emitted["durable"])
+        self.assertNotIn("\n  push:", emitted["fast"])
+        # ci.md's verify bar: the pipeline runs on PRs and on default-branch pushes
+        self.assertIn("\n  push:", emitted["durable"])
+        for gate in ("lint:", "typecheck:", "test:", "build:", "integration:", "audit:"):
+            with self.subTest(gate=gate):
+                self.assertIn(gate, emitted["durable"])
+
+    def test_canonical_state_survives_init_answers_mode_checkpoint_and_resume(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.run_script("init_project.py", "Resume Me", "--directory", directory, "--mode", "indie")
+            path = Path(directory) / ".product-studio" / "project.json"
+            state = json.loads(path.read_text())
+            record_answer(state, "who is this for?", "solo founders", decision_id="D-001")
+            begin_phase(state, "product")
+            record_review(state, "product", "independent", True, [])
+            checkpoint(state, "product")
+            save(path, state)
+
+            resumed = json.loads(path.read_text())
+            self.assertEqual(resumed["project"]["mode"], "indie")
+            self.assertEqual(resumed["workflow_profile"], workflow_profile.compile_profile("indie"))
+            self.assertEqual(resumed["session"]["questions"][0]["decision_id"], "D-001")
+            self.assertEqual(resumed["session"]["last_checkpoint"]["phase"], "product")
+            self.assertEqual(resumed["session"]["next_action"], "begin-research")
+            # and the runner can still act on the file it just wrote
+            checkpoint(resumed, "product")
+            self.assertEqual(resumed["phases"]["product"]["status"], "checkpointed")
+
+    def test_brief_validator_rejects_a_deployment_the_profile_forbids(self):
+        brief = (ROOT / "templates/implementation-brief.md").read_text()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "brief.md"
+            path.write_text(brief.replace("- Next checkpoint:", "- Next checkpoint: deploy to production"))
+            errors = validate_brief(path, mode="saas")
+            self.assertTrue([e for e in errors if "does not allow" in e])
+
+    def test_brief_validator_requires_an_owner_on_every_check(self):
+        brief = (ROOT / "templates/implementation-brief.md").read_text()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "brief.md"
+            path.write_text(brief.replace(" — Owner: — Status: unresolved", " — Status: unresolved"))
+            self.assertIn("every verification item must name an owner", validate_brief(path))
+
+    def test_every_public_skill_ships_interface_metadata(self):
+        for name in ("product-studio", "workflow-init", "engineering-cycle", "product-recheck"):
+            with self.subTest(skill=name):
+                meta = (ROOT / "skills" / name / "agents/openai.yaml").read_text()
+                self.assertIn("display_name:", meta)
+                self.assertIn("short_description:", meta)
+                self.assertIn(name, (ROOT / "skills" / name / "SKILL.md").read_text())
+                self.assertIn(name.split("-")[0], meta.lower())
+

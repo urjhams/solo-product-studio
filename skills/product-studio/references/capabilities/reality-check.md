@@ -2,7 +2,7 @@
 
 Purpose: mid-development re-evaluation. Reconstruct what the code actually is, compare it against what the product was supposed to be, and return a verdict plus the behavior and test deltas needed to close the gap.
 
-Inputs: repository, `.product-studio/project.yaml` when present, `docs/agent/BEHAVIORS.md`, `docs/agent/CARD.md`, `AGENTS.md`, README, existing test suite. No prior state is required — the capability works on a repository it has never seen.
+Inputs: repository, `.product-studio/project.json` when present, `docs/agent/BEHAVIORS.md`, `docs/agent/CARD.md`, `AGENTS.md`, README, existing test suite. No prior state is required — the capability works on a repository it has never seen.
 
 Outputs: a reconstructed product summary derived from code, a three-part drift report, a prioritized question queue with recommended picks, an updated Behavior Spec with an explicit delta, a test delta, and a Re-evaluation Verdict of Continue / Redirect / Cut / Stop.
 

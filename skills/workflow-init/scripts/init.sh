@@ -26,6 +26,11 @@ DEST="."
 MODULES="core"
 FORCE=0
 MODE="install"
+PROFILE=""
+# Set from .product-studio/project.json when product-studio ran first. Defaults
+# hold when it did not — workflow-init has to stay usable on its own.
+PS_MODE=""
+PS_CI_REQUIRED=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -35,10 +40,29 @@ while [ $# -gt 0 ]; do
     --uninstall) MODE="uninstall"; shift ;;
     --check) MODE="check"; shift ;;
     --list) MODE="list"; shift ;;
+    --profile) PROFILE="$2"; shift 2 ;;
     -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
   esac
 done
+
+# The compiled workflow profile decides which CI ladder this repo gets. Reading it
+# here rather than compiling anything keeps the single policy table in product-studio,
+# which workflow-init is deliberately not packaged with.
+read_profile() {
+  [ -f "$1" ] || return 0
+  command -v python3 >/dev/null 2>&1 || return 0
+  eval "$(python3 -c '
+import json, sys
+try:
+    profile = json.load(open(sys.argv[1])).get("workflow_profile") or {}
+except Exception:
+    profile = {}
+mode = profile.get("mode", "")
+print("PS_MODE=" + (mode if mode.isalnum() else ""))
+print("PS_CI_REQUIRED=" + str(int(bool(profile.get("testing", {}).get("ci_required")))))
+' "$1" 2>/dev/null)"
+}
 
 sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'; else shasum -a 256 "$1" | awk '{print $1}'; fi; }
 
@@ -68,9 +92,11 @@ claude-code/hooks/require-verdict.sh|.claude/hooks/require-verdict.sh
 claude-code/hooks/state-autocompact.sh|.claude/hooks/state-autocompact.sh
 EOF
       ;;
-    ci) cat <<'EOF'
-ci/github/workflows/ci.yml|.github/workflows/ci.yml
-EOF
+    ci) if [ "$PS_CI_REQUIRED" = 1 ]; then
+          echo 'ci/github/workflows/ci-full.yml|.github/workflows/ci.yml'
+        else
+          echo 'ci/github/workflows/ci.yml|.github/workflows/ci.yml'
+        fi
       ;;
     # online review lane: the review runs in Actions instead of a local reviewer subagent
     ci-review) cat <<'EOF'
@@ -252,9 +278,22 @@ check() {
   # empty generated dirs count as left behind — a project that uninstalled cleanly
   # should not still carry a hollow docs/engineering/checklists/
   [ -d "$tmp/docs/engineering" ] && { echo "UNINSTALL LEFT: empty docs/engineering"; fail=1; }
+  # the ci module must follow the profile: a fast mode gets the single-job stub, a
+  # durable one gets the full ladder on PR *and* default-branch push
+  local ci_tmp; ci_tmp=$(mktemp -d)
+  PS_CI_REQUIRED=0 DEST="$ci_tmp/fast" MODULES="ci" FORCE=0 install >/dev/null
+  PS_CI_REQUIRED=1 DEST="$ci_tmp/durable" MODULES="ci" FORCE=0 install >/dev/null
+  if diff -q "$ci_tmp/fast/.github/workflows/ci.yml" "$ci_tmp/durable/.github/workflows/ci.yml" >/dev/null 2>&1; then
+    echo "CI NOT PROFILE-AWARE: both lanes emitted the same workflow"; fail=1
+  fi
+  grep -q '^  push:' "$ci_tmp/durable/.github/workflows/ci.yml" || { echo "DURABLE CI MISSING default-branch push trigger"; fail=1; }
+  grep -q '^  push:' "$ci_tmp/fast/.github/workflows/ci.yml" && { echo "FAST CI SHOULD NOT push-trigger"; fail=1; }
+  rm -rf "$ci_tmp"
   rm -rf "$tmp"
   if [ "$fail" = 0 ]; then echo "CHECK OK"; else echo "CHECK FAILED"; exit 1; fi
 }
+
+read_profile "${PROFILE:-$DEST/.product-studio/project.json}"
 
 case "$MODE" in
   install) install ;;

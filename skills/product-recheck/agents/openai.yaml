@@ -1,0 +1,4 @@
+interface:
+  display_name: "Product Recheck"
+  short_description: "Re-evaluate a product already under development"
+  default_prompt: "Use product-recheck to re-evaluate this project."
