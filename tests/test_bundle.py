@@ -669,6 +669,25 @@ class ProfileScenarioTests(unittest.TestCase):
         self.assertIn("{{MERGE_POLICY_LINE}}", (init / "templates/core/docs/agent/CARD.md").read_text())
         self.assertIn("{{MERGE_POLICY}}", (init / "templates/core/docs/agent/RUNBOOKS.md").read_text())
 
+    def test_merge_gate_survives_the_obvious_ways_around_it(self):
+        """A gate a leading `PAGER=cat` walks past is not a gate."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        filled = (hook
+                  .replace("{{SOURCE_DIRS_RE}}", "src").replace("{{TEST_DIRS}}", "")
+                  .replace("{{PROJECT_SLUG}}", "gate-test").replace("{{DEFAULT_BRANCH}}", "main")
+                  .replace("{{MERGE_POLICY}}", "never"))
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "require-verdict.sh"
+            script.write_text(filled)
+            blocked = ("gh pr merge 1", "PAGER=cat gh pr merge 1", "env gh pr merge 1",
+                       "command gh pr merge 1", "A=1 B=2 gh pr merge 1", "true && PAGER=cat gh pr merge 1")
+            allowed = ("ls -la", "git commit -m 'note about gh pr merge later'", "echo gh pr create")
+            for command in blocked + allowed:
+                payload = json.dumps({"tool_input": {"command": command}})
+                result = subprocess.run(["bash", str(script)], input=payload, cwd=directory, text=True, capture_output=True)
+                with self.subTest(command=command):
+                    self.assertEqual('"decision":"block"' in result.stdout, command in blocked, result.stdout)
+
     def test_gate_three_has_the_qa_agent_it_tells_you_to_spawn(self):
         init = ROOT / "skills/workflow-init"
         qa = (init / "templates/agents/qa-agent.md").read_text()

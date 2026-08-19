@@ -27,13 +27,19 @@ fi
 
 block() { printf '{"decision":"block","reason":"%s"}\n' "$1"; exit 0; }
 
+# A command *target*: start of line or after a shell operator, past any leading `VAR=val`,
+# `env`, or `command` prefix — `PAGER=cat gh pr merge` is still a merge, and a gate that
+# misses it is a gate. Anchored so a mention inside a commit message or a comment body,
+# which is preceded by a quote or a word character, never trips it.
+CMD_START='(^|&&|\|\||;|\()[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*((env|command)[[:space:]]+)*'
+
 # Merge gate. `--admin` bypasses branch protection and is never allowed, under any policy.
 # Past that, the compiled workflow_profile decides: `never` blocks, `ask` falls through to the
 # permission prompt (which is why `Bash(gh pr merge:*)` is deliberately NOT in settings.json's
 # allow list), and `auto_on_approve` needs an APPROVE review marker earned on this exact HEAD.
-# ponytail: the marker proves a review verdict, not green CI — checking `gh pr checks` here would
-# mean a network round-trip on every Bash call. CI-green stays a RUNBOOKS instruction.
-if printf '%s' "$command" | grep -qE '(^|&&|\|\||;)[[:space:]]*gh[[:space:]]+pr[[:space:]]+merge'; then
+# Known ceiling: the marker proves a review verdict, not green CI. Checking `gh pr checks` here
+# would mean a network round-trip on every Bash call, so CI-green stays a RUNBOOKS instruction.
+if printf '%s' "$command" | grep -qE "${CMD_START}gh[[:space:]]+pr[[:space:]]+merge"; then
   printf '%s' "$command" | grep -qE '(^|[[:space:]])--admin([[:space:]=]|$)' \
     && block "gh pr merge --admin bypasses branch protection. Merge without --admin, or ask the user to merge in the GitHub UI."
   case "$MERGE_POLICY" in
@@ -47,9 +53,8 @@ if printf '%s' "$command" | grep -qE '(^|&&|\|\||;)[[:space:]]*gh[[:space:]]+pr[
   esac
 fi
 
-# Match `gh pr create` as a command target (start of string or after a shell operator),
-# never as a prose mention inside a commit message or comment body.
-printf '%s' "$command" | grep -qE '(^|&&|\|\||;)[[:space:]]*gh[[:space:]]+pr[[:space:]]+create' || exit 0
+# Same anchor for `gh pr create`: a command target, never a prose mention.
+printf '%s' "$command" | grep -qE "${CMD_START}gh[[:space:]]+pr[[:space:]]+create" || exit 0
 
 base=$(git merge-base HEAD "origin/{{DEFAULT_BRANCH}}" 2>/dev/null || echo "")
 changed=$(git diff --name-only "${base:-HEAD~1}"...HEAD 2>/dev/null)
