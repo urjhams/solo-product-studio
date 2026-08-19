@@ -29,7 +29,7 @@ fi
 # An unescaped `"` produced unparseable stdout, and a hook whose output cannot be parsed does not
 # block — which turned a REQUEST-CHANGES marker into a permitted merge. Escape, then emit.
 block() {
-  reason=$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n\r\t' '   ')
+  reason=$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | LC_ALL=C tr '\000-\037' ' ')
   printf '{"decision":"block","reason":"%s"}\n' "$reason"
   exit 0
 }
@@ -37,18 +37,31 @@ block() {
 # A command *target*: start of line or after a shell operator, past any leading `VAR=val`,
 # `env`, `command`, or `sudo` prefix — `PAGER=cat gh pr merge` is still a merge, and a gate that
 # misses it is not a gate.
-#
-# Matching runs against $unquoted, not $command: quoted segments are blanked first, so a
-# `gh pr merge` inside a commit message, a `--body`, or the reviewer's posted review never trips
-# a gate. Anchoring alone could not do that — widening the operator set to catch `ls | gh pr
-# merge` also caught `--body "next step; gh pr merge"`, which would have blocked the orchestrator
-# from posting its own review.
-#
-# Ceiling: this guards habit, not an adversary. A deliberately obfuscated `bash -c "gh pr …"` or
-# `$(echo gh) pr merge` still gets through, and no regex fixes that — an agent evading its own
-# guardrail has already left the workflow the guardrail exists to enforce.
 CMD_START='(^|&|\||;|\()[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*((env|command|sudo)[[:space:]]+)*'
-unquoted=$(printf '%s' "$command" | sed "s/'[^']*'/''/g; s/\"[^\"]*\"/\"\"/g")
+
+# Matching runs against the command with the *contents* of quoted regions removed, so a
+# `gh pr merge` inside a commit message or a `--body` never trips a gate while a real one can
+# never hide behind a quote. This has to be a single pass that tracks whichever quote opened
+# first: a sed pass over single quotes that ignores double-quote context blanks everything
+# between two apostrophes — so a chained command carrying two English contractions inside its
+# double-quoted arguments made the merge between them invisible. That is a fail-open on the most
+# ordinary shape an agent writes, which is why this is a scanner and not a substitution. Unbalanced
+# quotes fall back to the raw command, because over-blocking is the safe direction here.
+scrub() {
+  awk '
+    {
+      out = ""; q = ""; n = length($0)
+      for (i = 1; i <= n; i++) {
+        c = substr($0, i, 1)
+        if (q == "") { out = out c; if (c == "\"" || c == "'"'"'") q = c }
+        else if (q == "\"" && c == "\\") i++
+        else if (c == q) { q = ""; out = out c }
+      }
+      if (q != "") exit 1
+      print out
+    }'
+}
+unquoted=$(printf '%s' "$command" | scrub) || unquoted="$command"
 
 # Merge gate. `--admin` bypasses branch protection and is never allowed, under any policy.
 # Ceiling on the marker itself: it is written through Bash redirection, so the settings.json
@@ -66,11 +79,40 @@ if printf '%s' "$unquoted" | grep -qE "${CMD_START}gh[[:space:]]+pr[[:space:]]+m
   case "$MERGE_POLICY" in
     ask) exit 0 ;;
     auto_on_approve)
-      # Pin to the commit the merge will actually land, not to whatever is checked out:
-      # `gh pr merge 7` merges PR 7 regardless of local HEAD, so a marker earned on this
-      # branch must not authorize someone else's PR. Unresolvable -> block, never assume.
-      pr_ref=$(printf '%s' "$unquoted" | sed -n 's/.*gh[[:space:]][[:space:]]*pr[[:space:]][[:space:]]*merge[[:space:]][[:space:]]*\([^-][^[:space:]]*\).*/\1/p')
-      sha=$(gh pr view $pr_ref --json headRefOid -q .headRefOid 2>/dev/null)
+      # Which PR is being merged? `gh pr merge 7` merges PR 7 no matter what is checked out, and
+      # the ref may follow a flag (`gh pr merge --squash 7`), so walk the tokens rather than
+      # taking the one after `merge`. More than one positional means the parser cannot tell which
+      # is the ref — block rather than guess, because guessing wrong validates the marker of a
+      # commit this merge will not land. Tokens come from $command so a quoted ref survives.
+      pr_ref=$(printf '%s' "$command" | awk '
+        {
+          start = 0
+          for (i = 1; i <= NF; i++) if ($i == "gh" && $(i+1) == "pr" && $(i+2) == "merge") { start = i + 3; break }
+          if (start == 0) exit 2
+          skip = 0; found = ""; extra = 0
+          for (i = start; i <= NF; i++) {
+            t = $i
+            if (t ~ /^(&&|\|\||;|&|\|)$/) break
+            if (skip) { skip = 0; continue }
+            if (t ~ /^-/) {
+              if (t == "-b" || t == "--body" || t == "-F" || t == "--body-file" || t == "-t" ||
+                  t == "--subject" || t == "--author-email" || t == "--match-head-commit") skip = 1
+              continue
+            }
+            if (found == "") found = t; else extra = 1
+          }
+          if (extra) exit 3
+          gsub(/^["\047]+|["\047]+$/, "", found)
+          print found
+        }')
+      case $? in
+        3) block "Cannot tell which PR this merge targets — more than one non-flag argument. Merge with just the PR number, or ask the user to merge in the GitHub UI." ;;
+      esac
+      if [ -n "$pr_ref" ]; then
+        sha=$(gh pr view "$pr_ref" --json headRefOid -q .headRefOid 2>/dev/null)
+      else
+        sha=$(gh pr view --json headRefOid -q .headRefOid 2>/dev/null)
+      fi
       [ -n "$sha" ] || block "Cannot resolve the head commit of the PR being merged (gh pr view failed). The review marker is pinned to a sha, so this merge cannot be verified — merge in the GitHub UI, or ask the user."
       review_file="$VERDICT_DIR/$sha.review"
       [ -f "$review_file" ] || block "No review marker for the PR head $sha — the reviewer writes $review_file after reviewing that exact commit. Review the PR head first, or ask the user to merge."

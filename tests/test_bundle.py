@@ -685,7 +685,14 @@ class ProfileScenarioTests(unittest.TestCase):
                        "(gh pr merge 1)", "x=1\ngh pr merge 1",
                        # Blanking quotes must not let a real merge hide behind one.
                        'gh pr merge 1 --subject "fix: it"', 'echo "a; b" ; gh pr merge 1',
-                       'echo "unclosed ; gh pr merge 1', 'echo "a ; gh pr merge 1" ; gh pr merge 2')
+                       'echo "unclosed ; gh pr merge 1', 'echo "a ; gh pr merge 1" ; gh pr merge 2',
+                       # Two apostrophes inside double-quoted arguments straddling the merge.
+                       # A single-quote substitution pass blanked everything between them and the
+                       # gate went silent — a fail-open on the commonest shape an agent writes.
+                       'echo "it\'s done" && gh pr merge 1 && echo "that\'s all"',
+                       'git commit -m "it\'s ready" && gh pr merge 1 --squash && echo "that\'s all"',
+                       'gh pr comment 1 --body "reviewer\'s happy" && gh pr merge 1',
+                       'gh pr merge "1"', "gh pr merge --squash 7")
             # Quoted text is blanked before matching, so the orchestrator can still post the
             # review and open a PR whose body describes the merge flow.
             allowed = ("ls -la", "git commit -m 'note about gh pr merge later'", "echo gh pr create",
@@ -702,6 +709,37 @@ class ProfileScenarioTests(unittest.TestCase):
                         # inversion that let a REQUEST-CHANGES marker permit a merge.
                         json.loads(result.stdout)
 
+    def test_block_reason_escapes_content_read_from_a_verdict_file(self):
+        """The reviewer writes verdict lines as prose; the earlier test drove block() through a
+        placeholder, which left the path that actually reads a file uncovered."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            verdicts = root / "verdicts"
+            verdicts.mkdir()
+            filled = (hook
+                      .replace("{{SOURCE_DIRS_RE}}", "src").replace("{{TEST_DIRS}}", "")
+                      .replace("{{DEFAULT_BRANCH}}", "main").replace("{{MERGE_POLICY}}", "never")
+                      .replace('VERDICT_DIR="/tmp/{{PROJECT_SLUG}}-verdicts"', f'VERDICT_DIR="{verdicts}"'))
+            script = root / "require-verdict.sh"
+            script.write_text(filled)
+            for command in ("git", "init", "-q"), ("git", "config", "user.email", "t@t"), ("git", "config", "user.name", "t"):
+                subprocess.run(command, cwd=root, check=True, capture_output=True)
+            source = root / "src"
+            source.mkdir()
+            # Two commits: the heavy lane triggers off a diff, and HEAD~1 has to exist.
+            for index, body in enumerate(("x = 1\n", "x = 2\n")):
+                (source / "app.py").write_text(body)
+                subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+                subprocess.run(["git", "commit", "-qm", f"c{index}"], cwd=root, check=True, capture_output=True)
+            sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True).stdout.strip()
+            (verdicts / sha).write_text('FIX-FIRST: broke the "auth" path and a \\ backslash\nevidence\n')
+            payload = json.dumps({"tool_input": {"command": "gh pr create --fill"}})
+            result = subprocess.run(["bash", str(script)], input=payload, cwd=root, text=True, capture_output=True)
+            decision = json.loads(result.stdout)   # fails loudly if the reason was spliced raw
+            self.assertEqual(decision["decision"], "block")
+            self.assertIn("auth", decision["reason"])
+
     def test_block_reason_stays_parseable_json_with_hostile_marker_text(self):
         """The reviewer writes the marker's first line as prose; a bare quote must not void the block."""
         hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
@@ -717,6 +755,39 @@ class ProfileScenarioTests(unittest.TestCase):
             decision = json.loads(result.stdout)
             self.assertEqual(decision["decision"], "block")
             self.assertIn("quote", decision["reason"])
+
+    def test_merge_gate_identifies_which_pr_is_being_merged(self):
+        """`gh pr merge 7` merges PR 7 whatever is checked out, so the ref decides which
+        marker counts. Taking the token after `merge` missed `gh pr merge --squash 7` and
+        silently validated the current branch instead."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        program = hook.split("pr_ref=$(printf '%s' \"$command\" | awk '", 1)[1].split("')\n", 1)[0]
+        with tempfile.TemporaryDirectory() as directory:
+            parser = Path(directory) / "ref.awk"
+            parser.write_text(program)
+            cases = {
+                "gh pr merge 7": (0, "7"),
+                "gh pr merge --squash 7": (0, "7"),
+                "gh pr merge --auto --squash 7": (0, "7"),
+                "gh pr merge --squash --delete-branch": (0, ""),   # bare -> current branch's PR
+                "gh pr merge": (0, ""),
+                'gh pr merge "1"': (0, "1"),                       # a quoted ref is still a ref
+                "gh pr merge feature/x": (0, "feature/x"),
+                "gh pr merge 7 8": (3, ""),                        # ambiguous -> the hook blocks
+            }
+            for command, (status, ref) in cases.items():
+                result = subprocess.run(["awk", "-f", str(parser)], input=command, text=True, capture_output=True)
+                with self.subTest(command=command):
+                    self.assertEqual(result.returncode, status, result.stderr)
+                    self.assertEqual(result.stdout.strip(), ref)
+
+    def test_worked_profile_example_matches_what_the_compiler_emits(self):
+        """A reader copies this JSON into their state file; drift ships them a profile the
+        gates are told to read fields from that are not there."""
+        text = (ROOT / "docs/examples/hackathon-ios.md").read_text()
+        blob = re.search(r'\{\s*"version": "workflow_profile/v1".*?\n\}', text, re.S)
+        self.assertIsNotNone(blob, "the hackathon example no longer contains a compiled profile")
+        self.assertEqual(json.loads(blob.group(0)), workflow_profile.compile_profile("hackathon"))
 
     def test_gate_three_has_the_qa_agent_it_tells_you_to_spawn(self):
         init = ROOT / "skills/workflow-init"
