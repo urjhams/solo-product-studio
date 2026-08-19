@@ -693,8 +693,13 @@ class ProfileScenarioTests(unittest.TestCase):
     def test_gate_three_has_the_qa_agent_it_tells_you_to_spawn(self):
         init = ROOT / "skills/workflow-init"
         qa = (init / "templates/agents/qa-agent.md").read_text()
-        for placeholder in ("{{QA_SURFACE}}", "{{QA_RUN_CMD}}", "{{QA_TOOLING}}"):
+        for placeholder in ("{{QA_SURFACE}}", "{{QA_TOOLS}}", "{{QA_RUN_CMD}}", "{{QA_TOOLING}}"):
             self.assertIn(placeholder, qa)
+        # The tools line is a placeholder because a fixed one would forbid the MCP tools the
+        # body tells the agent to use — an unusable agent that still looks correctly written.
+        self.assertIn("tools: {{QA_TOOLS}}", qa)
+        for placeholder in ("{{QA_SURFACE}}", "{{QA_TOOLS}}", "{{QA_RUN_CMD}}", "{{QA_TOOLING}}"):
+            self.assertIn(placeholder, (init / "SKILL.md").read_text())
         # QA reports evidence; it never writes the marker that unblocks a merge.
         self.assertIn("Never write a verdict marker", qa)
         self.assertIn("agents/qa-agent.md|.claude/agents/_qa-agent.template.md", (init / "scripts/init.sh").read_text())

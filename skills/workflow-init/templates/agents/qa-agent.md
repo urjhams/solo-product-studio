@@ -1,7 +1,7 @@
 ---
 name: qa-agent
 description: Captures behavioral and visual evidence for changes touching {{QA_SURFACE}}. Spawn on demand when a diff changes what a user sees or does. Read-only; returns evidence, never a pass.
-tools: Read, Grep, Glob, Bash
+tools: {{QA_TOOLS}}
 model: sonnet
 ---
 

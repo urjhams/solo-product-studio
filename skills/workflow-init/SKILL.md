@@ -101,7 +101,7 @@ skill — that skill writes the same file, so a project using both gets one spec
    - `{{MERGE_POLICY}}` — the bare enum value (`never` / `ask` / `auto_on_approve`), in the hook's
      config block and the RUNBOOKS Merge section. `{{MERGE_POLICY_TEXT}}` (AGENTS.md) and
      `{{MERGE_POLICY_LINE}}` (CARD step 13) — paste from "Merge-policy fills" below.
-   - `{{QA_SURFACE}}`, `{{QA_RUN_CMD}}`, `{{QA_TOOLING}}` — the QA agent, step 5.
+   - `{{QA_SURFACE}}`, `{{QA_TOOLS}}`, `{{QA_RUN_CMD}}`, `{{QA_TOOLING}}` — the QA agent, step 5.
 
    **Review-lane fills.** Copy one pair; do not paraphrase.
 
@@ -207,9 +207,10 @@ skill — that skill writes the same file, so a project using both gets one spec
      `.claude/agents/<area>-reviewer.md`, filling `{{AREA}}`, `{{AREA_STACK}}`, `{{AREA_PATHS}}`,
      `{{AREA_STANDARDS_DOC}}`, `{{PROJECT_SLUG}}`. Delete the template copy after.
    - **QA agent**: rename `.claude/agents/_qa-agent.template.md` to `.claude/agents/qa-agent.md`
-     and fill `{{QA_SURFACE}}`, `{{QA_RUN_CMD}}`, `{{QA_TOOLING}}`, `{{PROJECT_SLUG}}` from the
-     stack you detected in step 1 — this is Gate 3's agent, and the reason it is a template is
-     that "run the app and look at it" means something different per platform:
+     and fill `{{QA_SURFACE}}`, `{{QA_TOOLS}}`, `{{QA_RUN_CMD}}`, `{{QA_TOOLING}}`,
+     `{{PROJECT_SLUG}}` from the stack you detected in step 1 — this is Gate 3's agent, and the
+     reason it is a template is that "run the app and look at it" means something different per
+     platform:
 
      | Surface | `{{QA_RUN_CMD}}` | `{{QA_TOOLING}}` |
      |---|---|---|
@@ -217,6 +218,14 @@ skill — that skill writes the same file, so a project using both gets one spec
      | Web frontend | the dev-server command | the `chrome-devtools` MCP server; `docs/engineering/browser-verification.md` when the `engineering-web` module is installed |
      | Android | the emulator install/launch command | `adb shell` + `adb exec-out screencap`, plus whatever the project already scripts |
      | CLI / backend | the run or serve command | `curl` transcripts, structured log lines, and the project's own smoke script |
+
+     `{{QA_TOOLS}}` is the frontmatter `tools:` line, and it is the one field that decides whether
+     the agent can do what the body tells it to: an MCP tool the list omits is a tool the agent
+     cannot call. Start from `Read, Grep, Glob, Bash` — never add `Write`, `Edit`, or `NotebookEdit`,
+     because read-only is what makes QA evidence rather than a second author — and append the MCP
+     tool names for the surface. Apple: the `mcp__XcodeBuildMCP__*` tools you named above. Web: the
+     `chrome-devtools` server's tools. Android and CLI need nothing beyond `Bash`. Name each tool
+     in full; a wildcard is not a tools-list entry.
 
      A repo with no user-visible surface has no Gate 3: delete the template instead of filling it,
      and say so in the report.
