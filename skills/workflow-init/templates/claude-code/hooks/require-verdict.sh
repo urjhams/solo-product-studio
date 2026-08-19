@@ -79,12 +79,18 @@ if printf '%s' "$unquoted" | grep -qE "${CMD_START}gh[[:space:]]+pr[[:space:]]+m
   case "$MERGE_POLICY" in
     ask) exit 0 ;;
     auto_on_approve)
-      # Which PR is being merged? `gh pr merge 7` merges PR 7 no matter what is checked out, and
-      # the ref may follow a flag (`gh pr merge --squash 7`), so walk the tokens rather than
-      # taking the one after `merge`. More than one positional means the parser cannot tell which
-      # is the ref — block rather than guess, because guessing wrong validates the marker of a
-      # commit this merge will not land. Tokens come from $command so a quoted ref survives.
-      pr_ref=$(printf '%s' "$command" | awk '
+      # Which PR is being merged? `gh pr merge 7` merges PR 7 no matter what is checked out, so
+      # the ref decides which marker counts. Two rules make the parser trustworthy:
+      #
+      #   1. It reads $unquoted — the same text the gate matched. Reading $command instead let it
+      #      lock onto a `gh pr merge 3` inside a --body while the gate had fired on a real merge
+      #      of PR 7, so the two disagreed about which merge they were looking at.
+      #   2. Operators are padded into their own fields first, because the walker splits on
+      #      whitespace: `(gh pr merge 7)` and `true&&gh pr merge 7` otherwise found no triple at
+      #      all, and "not found" fell through to the bare-merge path — the current branch's PR.
+      #
+      # Every outcome that is not an unambiguous ref, or a genuinely bare `gh pr merge`, blocks.
+      pr_ref=$(printf '%s' "$unquoted" | sed 's/[()&|;]/ & /g' | awk '
         {
           start = 0
           for (i = 1; i <= NF; i++) if ($i == "gh" && $(i+1) == "pr" && $(i+2) == "merge") { start = i + 3; break }
@@ -92,7 +98,7 @@ if printf '%s' "$unquoted" | grep -qE "${CMD_START}gh[[:space:]]+pr[[:space:]]+m
           skip = 0; found = ""; extra = 0
           for (i = start; i <= NF; i++) {
             t = $i
-            if (t ~ /^(&&|\|\||;|&|\|)$/) break
+            if (t ~ /^[()&|;]$/) break
             if (skip) { skip = 0; continue }
             if (t ~ /^-/) {
               if (t == "-b" || t == "--body" || t == "-F" || t == "--body-file" || t == "-t" ||
@@ -102,11 +108,15 @@ if printf '%s' "$unquoted" | grep -qE "${CMD_START}gh[[:space:]]+pr[[:space:]]+m
             if (found == "") found = t; else extra = 1
           }
           if (extra) exit 3
-          gsub(/^["\047]+|["\047]+$/, "", found)
-          print found
+          bare = found
+          gsub(/^["\047]+|["\047]+$/, "", bare)
+          if (found != "" && bare == "") exit 4
+          print bare
         }')
       case $? in
+        2) block "Cannot tell which PR this merge targets — the command shape defeated the parser. Run the merge on its own (\`gh pr merge <number>\`), or ask the user to merge in the GitHub UI." ;;
         3) block "Cannot tell which PR this merge targets — more than one non-flag argument. Merge with just the PR number, or ask the user to merge in the GitHub UI." ;;
+        4) block "The PR reference is quoted or comes from a variable, so it cannot be resolved before the merge runs. Pass the PR number literally, or ask the user to merge in the GitHub UI." ;;
       esac
       if [ -n "$pr_ref" ]; then
         sha=$(gh pr view "$pr_ref" --json headRefOid -q .headRefOid 2>/dev/null)

@@ -692,7 +692,9 @@ class ProfileScenarioTests(unittest.TestCase):
                        'echo "it\'s done" && gh pr merge 1 && echo "that\'s all"',
                        'git commit -m "it\'s ready" && gh pr merge 1 --squash && echo "that\'s all"',
                        'gh pr comment 1 --body "reviewer\'s happy" && gh pr merge 1',
-                       'gh pr merge "1"', "gh pr merge --squash 7")
+                       'gh pr merge "1"', "gh pr merge --squash 7",
+                       "(gh pr merge 7)", "true&&gh pr merge 7",
+                       'gh pr comment 7 --body "run gh pr merge 3" && gh pr merge 7')
             # Quoted text is blanked before matching, so the orchestrator can still post the
             # review and open a PR whose body describes the merge flow.
             allowed = ("ls -la", "git commit -m 'note about gh pr merge later'", "echo gh pr create",
@@ -757,11 +759,12 @@ class ProfileScenarioTests(unittest.TestCase):
             self.assertIn("quote", decision["reason"])
 
     def test_merge_gate_identifies_which_pr_is_being_merged(self):
-        """`gh pr merge 7` merges PR 7 whatever is checked out, so the ref decides which
-        marker counts. Taking the token after `merge` missed `gh pr merge --squash 7` and
-        silently validated the current branch instead."""
+        """`gh pr merge 7` merges PR 7 whatever is checked out, so the ref decides which marker
+        counts. Every outcome that is not an unambiguous ref, or a genuinely bare merge, must
+        block — "parser found nothing" silently meaning "the current branch" is the fail-open
+        this guards, and it was reachable twice."""
         hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
-        program = hook.split("pr_ref=$(printf '%s' \"$command\" | awk '", 1)[1].split("')\n", 1)[0]
+        program = hook.split("| awk '", 1)[1].split("')\n", 1)[0]
         with tempfile.TemporaryDirectory() as directory:
             parser = Path(directory) / "ref.awk"
             parser.write_text(program)
@@ -769,17 +772,35 @@ class ProfileScenarioTests(unittest.TestCase):
                 "gh pr merge 7": (0, "7"),
                 "gh pr merge --squash 7": (0, "7"),
                 "gh pr merge --auto --squash 7": (0, "7"),
-                "gh pr merge --squash --delete-branch": (0, ""),   # bare -> current branch's PR
+                "gh pr merge 7 && echo done": (0, "7"),
+                # Operators glued to `gh` used to yield "no merge found" -> the current branch.
+                "(gh pr merge 7)": (0, "7"),
+                "true&&gh pr merge 7": (0, "7"),
+                # A genuinely bare merge is the one case that legitimately means "this branch".
+                "gh pr merge --squash --delete-branch": (0, ""),
                 "gh pr merge": (0, ""),
-                'gh pr merge "1"': (0, "1"),                       # a quoted ref is still a ref
-                "gh pr merge feature/x": (0, "feature/x"),
-                "gh pr merge 7 8": (3, ""),                        # ambiguous -> the hook blocks
+                "gh pr merge 7 8": (3, ""),      # ambiguous
+                'gh pr merge ""': (4, ""),       # quoted or from a variable: unresolvable
             }
             for command, (status, ref) in cases.items():
-                result = subprocess.run(["awk", "-f", str(parser)], input=command, text=True, capture_output=True)
+                padded = subprocess.run(["sed", "s/[()&|;]/ & /g"], input=command, text=True, capture_output=True).stdout
+                result = subprocess.run(["awk", "-f", str(parser)], input=padded, text=True, capture_output=True)
                 with self.subTest(command=command):
                     self.assertEqual(result.returncode, status, result.stderr)
                     self.assertEqual(result.stdout.strip(), ref)
+
+    def test_merge_gate_and_its_ref_parser_read_the_same_command(self):
+        """The gate fired on the real merge while the parser locked onto a `gh pr merge` inside
+        a --body, so they disagreed about which PR was being merged."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        self.assertIn('''pr_ref=$(printf '%s' "$unquoted"''', hook)
+        self.assertNotIn('''pr_ref=$(printf '%s' "$command"''', hook)
+        # Every non-zero parser status has a block arm; a missing one falls through to the
+        # bare-merge path, which resolves the current branch's PR.
+        arms = hook.split("case $? in", 1)[1].split("esac", 1)[0]
+        for status in ("2)", "3)", "4)"):
+            self.assertIn(status, arms)
+            self.assertIn("block", arms)
 
     def test_worked_profile_example_matches_what_the_compiler_emits(self):
         """A reader copies this JSON into their state file; drift ships them a profile the
