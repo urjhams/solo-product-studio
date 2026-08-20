@@ -18,8 +18,7 @@
       "Bash(rg:*)",
       "Bash(ls:*)",
       "Bash(head:*)",
-      "Bash(tail:*)",
-      "Bash(gh pr merge:*)"
+      "Bash(tail:*)"
     ],
     "deny": [
       "Bash(git reset --hard)",
@@ -28,7 +27,8 @@
       "Bash(git push --force:*)",
       "Bash(git push -f)",
       "Bash(git push -f:*)",
-      "Edit(/tmp/{{PROJECT_SLUG}}-verdicts/**)"
+      "Edit(/tmp/{{PROJECT_SLUG}}-verdicts/**)",
+      "Write(/tmp/{{PROJECT_SLUG}}-verdicts/**)"
     ]
   },
   "hooks": {

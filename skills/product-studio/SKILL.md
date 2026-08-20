@@ -140,6 +140,8 @@ Use the smallest applicable question set. Record each answer before asking the n
 
 **MVP questions:** critical path, mock boundary, essential real integration, persistence, time allocation, cut trigger, test risk, and definition of done.
 
+**Delivery questions** — ask only where the mode compiles `development.pull_request_required: true`, and only once, because both answers become compiled policy the scaffolded repository enforces: where the code review should run (a local reviewer subagent on the PR HEAD, or the repository's own GitHub Actions workflow, which needs an `ANTHROPIC_API_KEY` secret), and who merges the PR once the review closes (never the agent / the agent may merge but every merge prompts / the agent merges itself once the review of that exact commit says APPROVE). Record them as `review.lane` and `development.merge_policy` overrides on the compiled profile. Merge policy is the one answer that lets a session run PR → review → merge unattended, so ask it rather than inferring it — and say that a production-risk profile compiles to `never` regardless of the answer.
+
 **Prototype questions:** the one flow, what the prototype must let the user judge, what may be faked versus what must be real, existing local toolchain, timebox, and what happens after the verdict. Always confirm the mock boundary explicitly rather than assuming it.
 
 After each answer update the relevant state section. Use `A-###` for assumptions and `D-###` for decisions. A workflow may transition only through `intake → proposed → confirmed → drafting → review → approved` (or `paused`/`rejected`). Store the current phase, gate, done bar, approval status, next action, and iteration count so a resumed session continues exactly where it stopped.

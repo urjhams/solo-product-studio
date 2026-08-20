@@ -618,6 +618,213 @@ class ProfileScenarioTests(unittest.TestCase):
         self.assertEqual(profile["design"]["gate"], "evidence_required")
         self.assertIn("human-approval-gate", profile["safety_floor"])
 
+    def test_merge_policy_and_review_lane_compile_for_every_mode(self):
+        for mode in workflow_profile.MODE_PROFILES:
+            with self.subTest(mode=mode):
+                profile = workflow_profile.compile_profile(mode)
+                # A lane only exists where an independent review does, and where one does it is
+                # never `none` — that pairing would compile a required review nobody runs.
+                if profile["review"]["independent_required"]:
+                    self.assertIn(profile["review"]["lane"], ("offline", "online"))
+                else:
+                    self.assertEqual(profile["review"]["lane"], "none")
+                self.assertIn(profile["development"]["merge_policy"], workflow_profile.MERGE_POLICIES)
+        # `ask` everywhere except the risk tier that names a human approval gate.
+        self.assertEqual(workflow_profile.compile_profile("indie")["development"]["merge_policy"], "ask")
+        self.assertEqual(workflow_profile.compile_profile("production")["development"]["merge_policy"], "never")
+
+    def test_high_risk_refuses_to_let_the_agent_merge_its_own_pr(self):
+        for overrides in ({"development": {"merge_policy": "auto_on_approve"}}, {"development": {"merge_policy": "ask"}}):
+            with self.subTest(overrides=overrides):
+                self.assertEqual(workflow_profile.compile_profile("production", overrides)["development"]["merge_policy"], "never")
+        # And the derivation follows the tier, not the mode label.
+        self.assertEqual(
+            workflow_profile.compile_profile("indie", {"risk_tier": "high", "development": {"merge_policy": "auto_on_approve"}})["development"]["merge_policy"],
+            "never",
+        )
+
+    def test_invalid_merge_policy_or_orphaned_review_requirement_is_refused(self):
+        with self.assertRaises(ValueError):
+            workflow_profile.compile_profile("indie", {"development": {"merge_policy": "yolo"}})
+        with self.assertRaises(ValueError):
+            workflow_profile.compile_profile("indie", {"review": {"lane": "postal"}})
+        with self.assertRaises(ValueError):
+            workflow_profile.compile_profile("indie", {"review": {"lane": "none"}})
+
+    def test_generated_merge_gate_has_a_mechanism_behind_it(self):
+        init = ROOT / "skills/workflow-init"
+        settings = json.loads((init / "templates/claude-code/settings.json").read_text())
+        # `ask` works precisely because the permission prompt fires; an allow entry silences it.
+        self.assertNotIn("Bash(gh pr merge:*)", settings["permissions"]["allow"])
+        hook = (init / "templates/claude-code/hooks/require-verdict.sh").read_text()
+        self.assertIn('MERGE_POLICY="{{MERGE_POLICY}}"', hook)
+        for policy in workflow_profile.MERGE_POLICIES:
+            self.assertIn(policy, hook)
+        self.assertIn(".review", hook)
+        self.assertIn("--admin", hook)
+        skill = (init / "SKILL.md").read_text()
+        for placeholder in ("{{MERGE_POLICY}}", "{{MERGE_POLICY_TEXT}}", "{{MERGE_POLICY_LINE}}"):
+            self.assertIn(placeholder, skill)
+        self.assertIn("{{MERGE_POLICY_TEXT}}", (init / "templates/core/AGENTS.md").read_text())
+        self.assertIn("{{MERGE_POLICY_LINE}}", (init / "templates/core/docs/agent/CARD.md").read_text())
+        self.assertIn("{{MERGE_POLICY}}", (init / "templates/core/docs/agent/RUNBOOKS.md").read_text())
+
+    def test_merge_gate_survives_the_obvious_ways_around_it(self):
+        """A gate a leading `PAGER=cat` walks past is not a gate."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        filled = (hook
+                  .replace("{{SOURCE_DIRS_RE}}", "src").replace("{{TEST_DIRS}}", "")
+                  .replace("{{PROJECT_SLUG}}", "gate-test").replace("{{DEFAULT_BRANCH}}", "main")
+                  .replace("{{MERGE_POLICY}}", "never"))
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "require-verdict.sh"
+            script.write_text(filled)
+            blocked = ("gh pr merge 1", "PAGER=cat gh pr merge 1", "env gh pr merge 1",
+                       "command gh pr merge 1", "sudo gh pr merge 1", "A=1 B=2 gh pr merge 1",
+                       "true && PAGER=cat gh pr merge 1", "ls | gh pr merge 1", "echo hi & gh pr merge 1",
+                       "(gh pr merge 1)", "x=1\ngh pr merge 1",
+                       # Blanking quotes must not let a real merge hide behind one.
+                       'gh pr merge 1 --subject "fix: it"', 'echo "a; b" ; gh pr merge 1',
+                       'echo "unclosed ; gh pr merge 1', 'echo "a ; gh pr merge 1" ; gh pr merge 2',
+                       # Two apostrophes inside double-quoted arguments straddling the merge.
+                       # A single-quote substitution pass blanked everything between them and the
+                       # gate went silent — a fail-open on the commonest shape an agent writes.
+                       'echo "it\'s done" && gh pr merge 1 && echo "that\'s all"',
+                       'git commit -m "it\'s ready" && gh pr merge 1 --squash && echo "that\'s all"',
+                       'gh pr comment 1 --body "reviewer\'s happy" && gh pr merge 1',
+                       'gh pr merge "1"', "gh pr merge --squash 7",
+                       "(gh pr merge 7)", "true&&gh pr merge 7",
+                       'gh pr comment 7 --body "run gh pr merge 3" && gh pr merge 7')
+            # Quoted text is blanked before matching, so the orchestrator can still post the
+            # review and open a PR whose body describes the merge flow.
+            allowed = ("ls -la", "git commit -m 'note about gh pr merge later'", "echo gh pr create",
+                       "gh pr list | grep 'gh pr merge'",
+                       'gh pr comment 1 --body "do not (gh pr merge) yet"',
+                       'gh pr comment 1 --body "next step; gh pr merge"')
+            for command in blocked + allowed:
+                payload = json.dumps({"tool_input": {"command": command}})
+                result = subprocess.run(["bash", str(script)], input=payload, cwd=directory, text=True, capture_output=True)
+                with self.subTest(command=command):
+                    self.assertEqual('"decision":"block"' in result.stdout, command in blocked, result.stdout)
+                    if result.stdout.strip():
+                        # A hook whose stdout does not parse is not a block. This is the
+                        # inversion that let a REQUEST-CHANGES marker permit a merge.
+                        json.loads(result.stdout)
+
+    def test_block_reason_escapes_content_read_from_a_verdict_file(self):
+        """The reviewer writes verdict lines as prose; the earlier test drove block() through a
+        placeholder, which left the path that actually reads a file uncovered."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            verdicts = root / "verdicts"
+            verdicts.mkdir()
+            filled = (hook
+                      .replace("{{SOURCE_DIRS_RE}}", "src").replace("{{TEST_DIRS}}", "")
+                      .replace("{{DEFAULT_BRANCH}}", "main").replace("{{MERGE_POLICY}}", "never")
+                      .replace('VERDICT_DIR="/tmp/{{PROJECT_SLUG}}-verdicts"', f'VERDICT_DIR="{verdicts}"'))
+            script = root / "require-verdict.sh"
+            script.write_text(filled)
+            for command in ("git", "init", "-q"), ("git", "config", "user.email", "t@t"), ("git", "config", "user.name", "t"):
+                subprocess.run(command, cwd=root, check=True, capture_output=True)
+            source = root / "src"
+            source.mkdir()
+            # Two commits: the heavy lane triggers off a diff, and HEAD~1 has to exist.
+            for index, body in enumerate(("x = 1\n", "x = 2\n")):
+                (source / "app.py").write_text(body)
+                subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True)
+                subprocess.run(["git", "commit", "-qm", f"c{index}"], cwd=root, check=True, capture_output=True)
+            sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True).stdout.strip()
+            (verdicts / sha).write_text('FIX-FIRST: broke the "auth" path and a \\ backslash\nevidence\n')
+            payload = json.dumps({"tool_input": {"command": "gh pr create --fill"}})
+            result = subprocess.run(["bash", str(script)], input=payload, cwd=root, text=True, capture_output=True)
+            decision = json.loads(result.stdout)   # fails loudly if the reason was spliced raw
+            self.assertEqual(decision["decision"], "block")
+            self.assertIn("auth", decision["reason"])
+
+    def test_block_reason_stays_parseable_json_with_hostile_marker_text(self):
+        """The reviewer writes the marker's first line as prose; a bare quote must not void the block."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        filled = (hook
+                  .replace("{{SOURCE_DIRS_RE}}", "src").replace("{{TEST_DIRS}}", "")
+                  .replace("{{PROJECT_SLUG}}", "gate-json").replace("{{DEFAULT_BRANCH}}", "main")
+                  .replace("{{MERGE_POLICY}}", 'REQUEST-CHANGES: unescaped "quote" and \\ backslash'))
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "require-verdict.sh"
+            script.write_text(filled)
+            payload = json.dumps({"tool_input": {"command": "gh pr merge 1"}})
+            result = subprocess.run(["bash", str(script)], input=payload, cwd=directory, text=True, capture_output=True)
+            decision = json.loads(result.stdout)
+            self.assertEqual(decision["decision"], "block")
+            self.assertIn("quote", decision["reason"])
+
+    def test_merge_gate_identifies_which_pr_is_being_merged(self):
+        """`gh pr merge 7` merges PR 7 whatever is checked out, so the ref decides which marker
+        counts. Every outcome that is not an unambiguous ref, or a genuinely bare merge, must
+        block — "parser found nothing" silently meaning "the current branch" is the fail-open
+        this guards, and it was reachable twice."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        program = hook.split("| awk '", 1)[1].split("')\n", 1)[0]
+        with tempfile.TemporaryDirectory() as directory:
+            parser = Path(directory) / "ref.awk"
+            parser.write_text(program)
+            cases = {
+                "gh pr merge 7": (0, "7"),
+                "gh pr merge --squash 7": (0, "7"),
+                "gh pr merge --auto --squash 7": (0, "7"),
+                "gh pr merge 7 && echo done": (0, "7"),
+                # Operators glued to `gh` used to yield "no merge found" -> the current branch.
+                "(gh pr merge 7)": (0, "7"),
+                "true&&gh pr merge 7": (0, "7"),
+                # A genuinely bare merge is the one case that legitimately means "this branch".
+                "gh pr merge --squash --delete-branch": (0, ""),
+                "gh pr merge": (0, ""),
+                "gh pr merge 7 8": (3, ""),      # ambiguous
+                'gh pr merge ""': (4, ""),       # quoted or from a variable: unresolvable
+            }
+            for command, (status, ref) in cases.items():
+                padded = subprocess.run(["sed", "s/[()&|;]/ & /g"], input=command, text=True, capture_output=True).stdout
+                result = subprocess.run(["awk", "-f", str(parser)], input=padded, text=True, capture_output=True)
+                with self.subTest(command=command):
+                    self.assertEqual(result.returncode, status, result.stderr)
+                    self.assertEqual(result.stdout.strip(), ref)
+
+    def test_merge_gate_and_its_ref_parser_read_the_same_command(self):
+        """The gate fired on the real merge while the parser locked onto a `gh pr merge` inside
+        a --body, so they disagreed about which PR was being merged."""
+        hook = (ROOT / "skills/workflow-init/templates/claude-code/hooks/require-verdict.sh").read_text()
+        self.assertIn('''pr_ref=$(printf '%s' "$unquoted"''', hook)
+        self.assertNotIn('''pr_ref=$(printf '%s' "$command"''', hook)
+        # Every non-zero parser status has a block arm; a missing one falls through to the
+        # bare-merge path, which resolves the current branch's PR.
+        arms = hook.split("case $? in", 1)[1].split("esac", 1)[0]
+        for status in ("2)", "3)", "4)"):
+            self.assertIn(status, arms)
+            self.assertIn("block", arms)
+
+    def test_worked_profile_example_matches_what_the_compiler_emits(self):
+        """A reader copies this JSON into their state file; drift ships them a profile the
+        gates are told to read fields from that are not there."""
+        text = (ROOT / "docs/examples/hackathon-ios.md").read_text()
+        blob = re.search(r'\{\s*"version": "workflow_profile/v1".*?\n\}', text, re.S)
+        self.assertIsNotNone(blob, "the hackathon example no longer contains a compiled profile")
+        self.assertEqual(json.loads(blob.group(0)), workflow_profile.compile_profile("hackathon"))
+
+    def test_gate_three_has_the_qa_agent_it_tells_you_to_spawn(self):
+        init = ROOT / "skills/workflow-init"
+        qa = (init / "templates/agents/qa-agent.md").read_text()
+        for placeholder in ("{{QA_SURFACE}}", "{{QA_TOOLS}}", "{{QA_RUN_CMD}}", "{{QA_TOOLING}}"):
+            self.assertIn(placeholder, qa)
+        # The tools line is a placeholder because a fixed one would forbid the MCP tools the
+        # body tells the agent to use — an unusable agent that still looks correctly written.
+        self.assertIn("tools: {{QA_TOOLS}}", qa)
+        for placeholder in ("{{QA_SURFACE}}", "{{QA_TOOLS}}", "{{QA_RUN_CMD}}", "{{QA_TOOLING}}"):
+            self.assertIn(placeholder, (init / "SKILL.md").read_text())
+        # QA reports evidence; it never writes the marker that unblocks a merge.
+        self.assertIn("Never write a verdict marker", qa)
+        self.assertIn("agents/qa-agent.md|.claude/agents/_qa-agent.template.md", (init / "scripts/init.sh").read_text())
+        self.assertIn("_qa-agent.template.md", (init / "SKILL.md").read_text())
+
     def test_unknown_mode_is_refused_at_every_entry_point(self):
         with self.assertRaises(ValueError):
             workflow_profile.compile_profile("hakathon")
@@ -638,6 +845,8 @@ class ProfileScenarioTests(unittest.TestCase):
                 self.assertIn(compiled["risk_tier"], profile_schema["properties"]["risk_tier"]["enum"])
                 self.assertIn(compiled["delivery_target"], profile_schema["properties"]["delivery_target"]["enum"])
                 self.assertIn(compiled["design"]["gate"], profile_schema["properties"]["design"]["properties"]["gate"]["enum"])
+                self.assertIn(compiled["development"]["merge_policy"], profile_schema["properties"]["development"]["properties"]["merge_policy"]["enum"])
+                self.assertIn(compiled["review"]["lane"], profile_schema["properties"]["review"]["properties"]["lane"]["enum"])
         table = (ROOT / "skills/product-studio/references/workflow-profile.md").read_text()
         for mode in workflow_profile.MODE_PROFILES:
             self.assertIn(mode, table)

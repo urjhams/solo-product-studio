@@ -29,6 +29,8 @@ skill — that skill writes the same file, so a project using both gets one spec
    |---|---|
    | `testing.ci_required` | whether `ci` is in `--modules`; `init.sh` then picks the full ladder over the stub |
    | `review.independent_required` | the review-lane question — `false` means no reviewer lane and no `ci-review` |
+   | `review.lane` | the lane itself, already chosen — `offline`, `online` (adds `ci-review`), or `none`. Set → do not re-ask |
+   | `development.merge_policy` | the `{{MERGE_POLICY}}` and `{{MERGE_POLICY_TEXT}}` fills — `never`, `ask`, or `auto_on_approve` |
    | `development.pull_request_required` | the `{{PR_POLICY}}` fill, and whether `claude-code` (the verdict hook) is worth installing |
    | `planning.spec_gate` | CARD step 2 — `warn` makes the ambiguity rule advisory instead of blocking |
    | `risk_tier` | whether `engineering` is included, and whether the security and observability checklists are optional |
@@ -53,6 +55,14 @@ skill — that skill writes the same file, so a project using both gets one spec
      **online** — the review runs in GitHub Actions on the PR and posts itself. Online adds the
      `ci-review` module (needs an `ANTHROPIC_API_KEY` repo secret, and a GitHub remote). Both
      lanes keep the local `task-evaluator` gate before the PR is opened, and both keep `agents`.
+     `review.lane` in the profile already answers this — ask only when there is none.
+   - *Merge policy*: who merges the PR once the review closes. **`never`** — the agent never
+     merges, you do. **`ask`** — the agent may run `gh pr merge` but it raises a permission
+     prompt every time. **`auto_on_approve`** — the agent merges itself once a review marker for
+     that exact HEAD says APPROVE. `development.merge_policy` in the profile already answers this;
+     a high-risk profile compiles to `never` and no answer here reopens it. Default `ask`.
+     This is the one question whose answer lets a session run PR → review → merge unattended, so
+     ask it explicitly rather than inferring it from how autonomous the rest of the setup looks.
    - *Engineering depth*: `engineering` copies the reference set from the sibling
      `engineering-cycle` skill into `docs/engineering/` — the review axes, security, the build
      loop, planning, ADRs, observability, release, CI, shipping, migration, and the checklists.
@@ -88,6 +98,10 @@ skill — that skill writes the same file, so a project using both gets one spec
      paste the block for the lane chosen in step 2, verbatim, from "Review-lane fills" below.
    - `{{PR_POLICY}}` (AGENTS.md, CARD step 10) and `{{MODE_POLICY}}` (AGENTS.md) — paste from
      "Profile fills" below. With no profile, use the durable fill; it is today's behavior.
+   - `{{MERGE_POLICY}}` — the bare enum value (`never` / `ask` / `auto_on_approve`), in the hook's
+     config block and the RUNBOOKS Merge section. `{{MERGE_POLICY_TEXT}}` (AGENTS.md) and
+     `{{MERGE_POLICY_LINE}}` (CARD step 13) — paste from "Merge-policy fills" below.
+   - `{{QA_SURFACE}}`, `{{QA_TOOLS}}`, `{{QA_RUN_CMD}}`, `{{QA_TOOLING}}` — the QA agent, step 5.
 
    **Review-lane fills.** Copy one pair; do not paraphrase.
 
@@ -145,18 +159,87 @@ skill — that skill writes the same file, so a project using both gets one spec
       matching `<area>-reviewer` locally for this PR.
    ```
 
-5. **Instantiate reviewers** (agents module): copy
-   `.claude/agents/_platform-reviewer.template.md` once per component to
-   `.claude/agents/<area>-reviewer.md`, filling `{{AREA}}`, `{{AREA_STACK}}`, `{{AREA_PATHS}}`,
-   `{{AREA_STANDARDS_DOC}}`. Delete the `_platform-reviewer.template.md` copy after. Fill these
-   with **static** content only — no dates, run IDs, or current-state prose: an agent definition
-   is the cached prefix every spawn of that type reuses, and one changed byte invalidates it.
+   **Merge-policy fills.** Copy the pair matching the policy; do not paraphrase. `{{MERGE_POLICY}}`
+   is the bare enum value in both the hook and the RUNBOOKS Merge section. The `auto_on_approve`
+   text carries a nested `{{PROJECT_SLUG}}` — paste the fill first, substitute after, or step 6's
+   grep is the only thing between you and a placeholder shipped verbatim.
+
+   *`never`* — `{{MERGE_POLICY_TEXT}}`:
+   ```
+   **You never merge.** Say the PR is ready and stop; the hook blocks `gh pr merge` outright.
+   `gh pr merge --admin` is never an option — branch protection is there by intent.
+   ```
+   *`never`* — `{{MERGE_POLICY_LINE}}`:
+   ```
+   not yours. Report the PR as ready and stop.
+   ```
+
+   *`ask`* — `{{MERGE_POLICY_TEXT}}`:
+   ```
+   **Merge only when the task said to.** `gh pr merge` is not pre-approved, so it raises a
+   permission prompt — but the prompt is a backstop, not the decision: no "the PR looks good so I
+   merged it". `gh pr merge --admin` is never an option and the hook blocks it — branch protection
+   is there by intent.
+   ```
+   *`ask`* — `{{MERGE_POLICY_LINE}}`:
+   ```
+   only when the task said to merge. It prompts; the prompt is a backstop, not permission.
+   ```
+
+   *`auto_on_approve`* — `{{MERGE_POLICY_TEXT}}`:
+   ```
+   **Merge once the review approves.** The hook resolves the head commit of the PR being merged
+   and requires an `APPROVE` marker at `/tmp/{{PROJECT_SLUG}}-verdicts/<that sha>.review`, written
+   by the reviewer that actually read it — never write one for a commit nobody reviewed, and a
+   marker from another commit authorizes nothing. Gate 2 closed and CI green are still
+   yours to confirm; the hook checks the marker, not the pipeline. `gh pr merge --admin` is never
+   an option and the hook blocks it — branch protection is there by intent.
+   ```
+   *`auto_on_approve`* — `{{MERGE_POLICY_LINE}}`:
+   ```
+   allowed once the PR head's review marker says APPROVE, Gate 2 is closed, and CI is green.
+   ```
+
+5. **Instantiate the agents** (agents module). Fill every field with **static** content only — no
+   dates, run IDs, or current-state prose: an agent definition is the cached prefix every spawn of
+   that type reuses, and one changed byte invalidates it.
+
+   - **Reviewers**: copy `.claude/agents/_platform-reviewer.template.md` once per component to
+     `.claude/agents/<area>-reviewer.md`, filling `{{AREA}}`, `{{AREA_STACK}}`, `{{AREA_PATHS}}`,
+     `{{AREA_STANDARDS_DOC}}`, `{{PROJECT_SLUG}}`. Delete the template copy after.
+   - **QA agent**: rename `.claude/agents/_qa-agent.template.md` to `.claude/agents/qa-agent.md`
+     and fill `{{QA_SURFACE}}`, `{{QA_TOOLS}}`, `{{QA_RUN_CMD}}`, `{{QA_TOOLING}}`,
+     `{{PROJECT_SLUG}}` from the stack you detected in step 1 — this is Gate 3's agent, and the
+     reason it is a template is that "run the app and look at it" means something different per
+     platform:
+
+     | Surface | `{{QA_RUN_CMD}}` | `{{QA_TOOLING}}` |
+     |---|---|---|
+     | Apple (iOS/macOS) | the scheme + simulator build/run | XcodeBuildMCP — `build_run_sim`, `screenshot`, `snapshot_ui`, `tap`/`type_text`; `sim_statusbar` for clean captures |
+     | Web frontend | the dev-server command | the `chrome-devtools` MCP server; `docs/engineering/browser-verification.md` when the `engineering-web` module is installed |
+     | Android | the emulator install/launch command | `adb shell` + `adb exec-out screencap`, plus whatever the project already scripts |
+     | CLI / backend | the run or serve command | `curl` transcripts, structured log lines, and the project's own smoke script |
+
+     `{{QA_TOOLS}}` is the frontmatter `tools:` line, and it is the one field that decides whether
+     the agent can do what the body tells it to: an MCP tool the list omits is a tool the agent
+     cannot call. Start from `Read, Grep, Glob, Bash` — never add `Write`, `Edit`, or `NotebookEdit`,
+     because read-only is what makes QA evidence rather than a second author — and append the MCP
+     tool names for the surface. Apple: the `mcp__XcodeBuildMCP__*` tools you named above. Web: the
+     `chrome-devtools` server's tools. Android and CLI need nothing beyond `Bash`. Name each tool
+     in full; a wildcard is not a tools-list entry.
+
+     A repo with no user-visible surface has no Gate 3: delete the template instead of filling it,
+     and say so in the report.
 
 6. **Verify**: `grep -rn '{{[A-Z_]*}}'` over the generated files returns nothing;
    `bash -n .claude/hooks/*.sh` passes. Report the generated file list, the collisions skipped,
    and the manual follow-ups: hooks activate next session; `.claude/settings.json` was
-   skipped if one existed — merge the hooks/permissions blocks by hand; **online lane only** —
-   `gh secret set ANTHROPIC_API_KEY`, or the review workflow fails on every PR.
+   skipped if one existed — merge the hooks/permissions blocks by hand, and drop any pre-existing
+   `Bash(gh pr merge:*)` allow entry or the `ask` policy silently stops prompting; **online lane
+   only** — `gh secret set ANTHROPIC_API_KEY`, or the review workflow fails on every PR.
+   Sanity-check the merge gate before reporting done:
+   `echo '{"tool_input":{"command":"gh pr merge 1"}}' | bash .claude/hooks/require-verdict.sh`
+   — expect a block under `never`, silence under `ask`.
 
 ## Design notes (why the generated workflow looks like this)
 
@@ -170,8 +253,13 @@ skill — that skill writes the same file, so a project using both gets one spec
   the independent reviewer and the CI ladder. It does not drop the safety floor, input validation,
   or secret hygiene — those are constant across every mode by construction.
 - **A rule with no mechanism is a suggestion**: the card is hook-injected, the evaluator verdict
-  is hook-enforced, the STATE cap is measured in bytes, and behavior coverage is a grep. Keep
-  mechanisms when adapting.
+  is hook-enforced, the merge is gated on a sha-pinned review marker, the STATE cap is measured in
+  bytes, and behavior coverage is a grep. Keep mechanisms when adapting.
+- **Merging is the one action the agent takes on the user's behalf**, so it is a compiled policy
+  rather than a paragraph, and `gh pr merge` is deliberately absent from the allow list: `ask`
+  works precisely because the permission prompt fires. `auto_on_approve` is opt-in, unavailable at
+  a high risk tier, and still needs a review it did not write itself — the same shape as the
+  evaluator verdict, so there is one mechanism to understand rather than two.
 - **Behaviors are addressed, not described.** `BH-###` ids are what make coverage checkable by
   machine: a behavior no test names is a gap, a test that names no behavior is an orphan likely
   encoding a misread requirement. Prose acceptance criteria cannot be grepped, which is why the

@@ -62,10 +62,7 @@ one can be found.
 - **Explain every command before running it** — one plain-language line.
 - {{PR_POLICY}}
   Gates + review flow: [`docs/agent/RUNBOOKS.md`](docs/agent/RUNBOOKS.md#pr-flow).
-- **Merge only when the task said to.** `gh pr merge` runs unprompted so a session can chain
-  PR → review → merge → next task, which makes this instruction the only gate: no "the PR looks
-  good so I merged it". `gh pr merge --admin` is never an option and the hook blocks it —
-  branch protection is there by intent.
+- {{MERGE_POLICY_TEXT}}
 
 ## Agent delegation
 

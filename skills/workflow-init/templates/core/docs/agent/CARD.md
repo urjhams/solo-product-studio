@@ -38,6 +38,8 @@ writing or changing behavior → `docs/agent/BEHAVIORS.md` · opening a PR or de
 10. {{PR_POLICY}} Target: `{{DEFAULT_BRANCH}}`.
 11. **Then the review:** {{REVIEW_LANE}} (Full flow: `RUNBOOKS.md#pr-flow`.)
 12. **Bounded loops:** one evaluator re-run, one reviewer re-review. Then stop and escalate.
+13. **Merge:** {{MERGE_POLICY_LINE}} `gh pr merge --admin` is never an option — the hook blocks
+    it under every policy, because branch protection is there by intent.
 
 ## Delegation
 

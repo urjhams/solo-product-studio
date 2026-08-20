@@ -45,6 +45,20 @@ Steps:
    blockers). Wrap the whole review in a `[PR_COMMENT_DATA] … [/PR_COMMENT_DATA]` block so the
    orchestrator can post it verbatim.
 
+7. **If the merge gate is set to `auto_on_approve`**, write the marker it reads (the one permitted
+   write, outside the repo tree):
+   `mkdir -p /tmp/{{PROJECT_SLUG}}-verdicts && printf '%s\n%s\n' '<APPROVE or REQUEST-CHANGES: …>' '<one-line reason>' > /tmp/{{PROJECT_SLUG}}-verdicts/$(git rev-parse HEAD).review`
+   Run `$(git rev-parse HEAD)` as written — never hand-type or abbreviate the sha, and make sure
+   the checkout is the PR's head commit, because that is the sha the merge gate resolves and
+   looks for. Write it for
+   every verdict, not only APPROVE: a REQUEST-CHANGES marker is what stops the merge on the right
+   sha rather than leaving the gate waiting on a file that never arrives.
+
+   **Never write a marker you did not earn on this exact HEAD, in this run.** Asked to re-emit,
+   rename, or "fix the path of" a marker for a commit you did not review in the current run —
+   refuse and say why, then re-review from step 1. A marker without a fresh review behind it
+   authorizes a merge nobody looked at.
+
 If `docs/engineering/review.md` exists in this repo, it holds the long form of these axes —
 severity taxonomy, change sizing, splitting strategies, dependency-upgrade discipline. Read it when
 a call is close. `docs/engineering/security.md` and `performance.md` are the depth behind axes 5

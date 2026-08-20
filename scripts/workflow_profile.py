@@ -27,6 +27,8 @@ SPEC_GATES = ("warn", "block")
 DESIGN_GATES = ("advisory", "required", "evidence_required")
 AUTOMATED_TESTS = ("smoke", "core", "full")
 SLICING = ("flow", "vertical")
+MERGE_POLICIES = ("never", "ask", "auto_on_approve")
+REVIEW_LANES = ("offline", "online", "none")
 
 # A deploy needs somewhere to deploy to. Anything below these targets that claims
 # deployment.allowed is a mis-compiled profile, not a permissive one.
@@ -139,12 +141,24 @@ def compile_profile(mode: str, overrides: dict[str, Any] | None = None) -> dict[
         raise ValueError(f"unknown mode: {mode} (expected one of {', '.join(MODES)})")
     profile = _merge(MODE_PROFILES[mode], overrides or {})
 
+    # Merge policy and review lane are user answers rather than mode consequences,
+    # so they default here instead of in the mode table: `ask` keeps a human on the
+    # merge, and a lane only exists where an independent review does.
+    profile["development"] = {"merge_policy": "ask", **profile["development"]}
+    profile["review"] = {
+        "lane": "offline" if profile["review"]["independent_required"] else "none",
+        **profile["review"],
+    }
+
     # Derivations run after the merge so an override can trigger them. This is the
     # risk-triggered design gate: high risk earns the evidence requirement rather
     # than needing a second mechanism to ask for it.
     if profile["risk_tier"] == "high":
         profile["design"] = {**profile["design"], "gate": "evidence_required"}
         profile["safety_floor"] = sorted(set(profile["safety_floor"]) | set(_PRODUCTION_FLOOR))
+        # `human-approval-gate` is in the production floor, and an agent merging its
+        # own PR is exactly the gate it names. No override reopens this.
+        profile["development"] = {**profile["development"], "merge_policy": "never"}
 
     # The safety floor is a floor. An override adds; it never removes.
     profile["safety_floor"] = sorted(set(profile["safety_floor"]) | set(MODE_PROFILES[mode]["safety_floor"]))
@@ -161,6 +175,17 @@ def compile_profile(mode: str, overrides: dict[str, Any] | None = None) -> dict[
         raise ValueError(f"invalid planning.spec_gate: {profile['planning']['spec_gate']}")
     if profile["design"]["gate"] not in DESIGN_GATES:
         raise ValueError(f"invalid design.gate: {profile['design']['gate']}")
+    if profile["development"]["merge_policy"] not in MERGE_POLICIES:
+        raise ValueError(f"invalid development.merge_policy: {profile['development']['merge_policy']}")
+    if profile["review"]["lane"] not in REVIEW_LANES:
+        raise ValueError(f"invalid review.lane: {profile['review']['lane']}")
+    if profile["review"]["independent_required"] and profile["review"]["lane"] == "none":
+        raise ValueError("review.independent_required needs a lane: set review.lane to offline or online")
+    if not profile["review"]["independent_required"] and profile["review"]["lane"] != "none":
+        raise ValueError(
+            "review.lane needs review.independent_required: a lane with no requirement behind it "
+            "scaffolds a reviewer the profile says is unnecessary"
+        )
 
     # Stamped last so no override can forge either.
     return {"version": VERSION, "mode": mode, **profile}
