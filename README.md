@@ -49,8 +49,10 @@ Four pillars, and the session says which one it is in. **Idea** is intake plus t
 sense-check. **Define** fills six slots in order — customer, pain, outcome, **mechanism**, pricing,
 proof — asking one question per slot with a guess attached and running a bounded, cited research pass
 on the slots that need one. A slot is filled when it has an answer, a confidence number, and either a
-citation or an `A-###` saying it has none; wherever the compiled profile sets `define.gate: required`
-the checkpoint blocks with `define-slot-missing:<slots>` until they all are.
+citation or an `A-###` saying it has none — that bar is the done bar's, and the agent's to hold.
+What the runner mechanically checks is narrower and therefore honest: wherever the compiled profile
+sets `define.gate: required`, the checkpoint blocks with `define-slot-missing:<slots>` until no slot
+is empty or a placeholder (`TBD`, `todo`, `unknown`).
 
 Mechanism is the slot most products are missing. Customer, pain, and outcome describe a wish;
 mechanism is the sentence saying why the wish comes true, and it has to be specific, causal, and

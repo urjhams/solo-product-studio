@@ -190,7 +190,7 @@ def checkpoint(state: dict[str, Any], phase: str) -> dict[str, Any]:
     spec_blocks = profile["planning"]["spec_gate"] == "block"
     if phase == "define" and profile["define"]["gate"] == "required":
         slots = state.get("define", {}).get("slots", {})
-        missing = [slot for slot in DEFINE_SLOTS if not slots.get(slot)]
+        missing = [slot for slot in DEFINE_SLOTS if _is_placeholder(slots.get(slot))]
         if missing:
             return _block(state, phase, f"define-slot-missing:{','.join(missing)}")
     if phase == "design" and profile["design"]["gate"] == "evidence_required" and not state["design"].get("evidence"):
@@ -301,20 +301,38 @@ def _normalize(state: dict[str, Any]) -> dict[str, Any]:
     ponytail: delete once no `.product-studio/project.json` predates the define phase.
     """
     phases = state.get("phases", {})
-    legacy = [phases.pop(name, None) for name in ("product", "research")]
-    if any(item is not None for item in legacy):
-        checkpointed = [item for item in legacy if item]
-        phases["define"] = checkpointed[-1] if checkpointed else {"status": "pending", "done_bar": [], "result": None}
+    legacy = [item for item in (phases.pop("product", None), phases.pop("research", None)) if item]
+    if legacy:
+        # A legacy project never inherits a cleared checkpoint: the define gate has
+        # not run against it, and grandfathering it past would mean the six slots are
+        # enforced for new projects only. Fold it to in_progress and make it earn it.
+        folded = phases.get("define") or dict(legacy[-1])
+        if folded.get("status") == "checkpointed":
+            folded = {**folded, "status": "in_progress"}
+        phases["define"] = folded
         state["phases"] = {phase: phases.get(phase, {"status": "pending", "done_bar": [], "result": None}) for phase in PHASES}
+        # Exact phase names only. A blanket string replace turns `production` into
+        # `defineion`, and `production` is a phase.
+        renames = {"product": "define", "research": "define"}
+        session = state.get("session", {})
+        for key in ("current_phase", "next_action", "current_gate"):
+            value = session.get(key)
+            if isinstance(value, str):
+                session[key] = "-".join(renames.get(part, part) for part in value.split("-"))
     define = state.setdefault("define", {})
     define.setdefault("slots", {slot: "" for slot in DEFINE_SLOTS})
     define.setdefault("research", state.pop("research", {}) or {})
     state.pop("product", None)
-    session = state.get("session", {})
-    for key in ("current_phase", "next_action", "current_gate"):
-        value = session.get(key)
-        if isinstance(value, str):
-            session[key] = value.replace("research", "define").replace("product", "define")
+    design = state.setdefault("design", {})
+    for key in ("prompt", "canvas_provider", "canvas_url"):
+        design.setdefault(key, "")
+    # A profile compiled before the define gate existed has no `define` block, and the
+    # version did not change, so nothing else recompiles it. Derive it the way
+    # compile_profile would rather than letting the gate KeyError on the file this
+    # function exists to rescue.
+    profile = state.get("workflow_profile")
+    if isinstance(profile, dict) and "gate" not in profile.get("define", {}):
+        profile["define"] = {"gate": "advisory" if profile.get("risk_tier") == "low" else "required"}
     return state
 
 

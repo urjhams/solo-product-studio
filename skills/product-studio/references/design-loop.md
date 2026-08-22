@@ -32,8 +32,10 @@ costs the user and what it earns them. Then the cut list: everything asked for b
 moment that does not have to be.
 
 Load the `onboarding` and `progressive-profiling` entries in `pattern-library/mobile-patterns.yaml`
-(or `saas-patterns.yaml`) rather than re-deriving the guidance — they already carry the failure modes
-(long introductions, premature permissions, unclear next action) and the accessibility notes.
+rather than re-deriving the guidance — they already carry the failure modes (long introductions,
+premature permissions, unclear next action) and the accessibility notes, and they are platform-neutral
+despite the filename. On a SaaS track add `team-invitation` and `billing-state` from
+`pattern-library/saas-patterns.yaml`; it has no onboarding entry of its own.
 
 Permissions, account creation, and personalization each need a reason to sit before the magic moment
 rather than after it. Default is after.

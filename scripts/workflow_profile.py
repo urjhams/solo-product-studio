@@ -145,6 +145,7 @@ def compile_profile(mode: str, overrides: dict[str, Any] | None = None) -> dict[
     if mode not in MODE_PROFILES:
         raise ValueError(f"unknown mode: {mode} (expected one of {', '.join(MODES)})")
     profile = _merge(MODE_PROFILES[mode], overrides or {})
+    define_gate_was_set = "gate" in (overrides or {}).get("define", {})
 
     # Merge policy and review lane are user answers rather than mode consequences,
     # so they default here instead of in the mode table: `ask` keeps a human on the
@@ -158,6 +159,12 @@ def compile_profile(mode: str, overrides: dict[str, Any] | None = None) -> dict[
     # Derivations run after the merge so an override can trigger them. This is the
     # risk-triggered design gate: high risk earns the evidence requirement rather
     # than needing a second mechanism to ask for it.
+    # The define gate follows the *merged* risk tier, not the mode's baked-in one, so
+    # raising the tier by override tightens it too. An explicit `define.gate` override
+    # still wins — it is the field's own switch.
+    if not define_gate_was_set:
+        profile["define"] = {**profile["define"], "gate": "advisory" if profile["risk_tier"] == "low" else "required"}
+
     if profile["risk_tier"] == "high":
         profile["design"] = {**profile["design"], "gate": "evidence_required"}
         profile["safety_floor"] = sorted(set(profile["safety_floor"]) | set(_PRODUCTION_FLOOR))
@@ -178,6 +185,8 @@ def compile_profile(mode: str, overrides: dict[str, Any] | None = None) -> dict[
             raise ValueError(f"invalid {field}: {profile[field]}")
     if profile["planning"]["spec_gate"] not in SPEC_GATES:
         raise ValueError(f"invalid planning.spec_gate: {profile['planning']['spec_gate']}")
+    if profile["define"]["gate"] not in DEFINE_GATES:
+        raise ValueError(f"invalid define.gate: {profile['define']['gate']}")
     if profile["design"]["gate"] not in DESIGN_GATES:
         raise ValueError(f"invalid design.gate: {profile['design']['gate']}")
     if profile["development"]["merge_policy"] not in MERGE_POLICIES:
