@@ -50,6 +50,20 @@ Ask what the user already has installed before recommending. Existing local setu
 
 Record the choice as `D-###` with a revisit trigger stating it was made on speed and must be re-decided if the prototype survives validation.
 
+## Define rule
+
+`define.gate` compiles to `advisory`, so no slot blocks the checkpoint. Still fill four of them:
+`customer`, `pain`, `outcome`, and `mechanism` — the prototype exists to test the mechanism, and a
+prototype whose mechanism is unstated has nothing to validate. Defer `pricing` and `proof` as
+`A-###` with the revisit trigger "the validation question is answered"; do not leave them blank.
+
+## Design rule
+
+Magic moment and onboarding path only, and the onboarding path is usually one step because the app
+starts already signed in. Cut the landing/store copy and the full design system — record both on the
+cut list. Still write the Design Prompt: it is how the user sees the one flow before it is built,
+which is the cheapest validation this mode has.
+
 ## Research rule
 
 Already satisfied by `references/idea-validation.md`, which runs before mode selection for every

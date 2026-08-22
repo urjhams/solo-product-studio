@@ -10,7 +10,11 @@ from typing import Any
 
 import workflow_profile
 
-PHASES = ("intake", "product", "research", "design", "specify", "mvp", "review", "production", "final_planning")
+PHASES = ("intake", "define", "design", "specify", "mvp", "review", "production", "final_planning")
+# The six slots a product definition is made of. `product` and `research` used to be two
+# phases and two checkpoints, which put the evidence after the definition was already
+# written. They are one phase now, and these are what it has to answer.
+DEFINE_SLOTS = ("customer", "pain", "outcome", "mechanism", "pricing", "proof")
 VERIFICATION_PASS = {"passed", "not_applicable"}
 CHECK_STATUSES = {"passed", "unresolved", "blocked", "not_applicable"}
 CHECK_OWNERS = {"implementation", "reviewer", "user"}
@@ -39,7 +43,10 @@ def new_state(project_id: str = "product", mode: str = "custom", *, name: str = 
         "reviews": [],
         "specify": {"behavior_spec": "", "mirror": "", "behaviors": 0, "open_ambiguities": 0, "validated": False},
         "final_planning": {"status": "pending", "source_artifacts": [], "implementation_brief": "", "context_sources": [], "constraints": [], "verification": {"do_not_finish_until": [], "evidence": [], "unresolved": []}, "output_format": {}, "reviewer": "", "review_iterations": 0, "approval_status": "pending", "source_fingerprint": ""},
-        "capabilities": {}, "product": {}, "business": {}, "constraints": {}, "research": {}, "assumptions": [], "decisions": [], "design": {}, "mvp": {}, "production": {}, "github": {},
+        "define": {"slots": {slot: "" for slot in DEFINE_SLOTS}, "research": {}},
+        "capabilities": {}, "business": {}, "constraints": {}, "assumptions": [], "decisions": [],
+        "design": {"prompt": "", "canvas_provider": "", "canvas_url": ""},
+        "mvp": {}, "production": {}, "github": {},
     }
 
 
@@ -181,6 +188,11 @@ def checkpoint(state: dict[str, Any], phase: str) -> dict[str, Any]:
     any_pass = any(review["passed"] for review in phase_reviews)
     profile = workflow_profile.load(state)
     spec_blocks = profile["planning"]["spec_gate"] == "block"
+    if phase == "define" and profile["define"]["gate"] == "required":
+        slots = state.get("define", {}).get("slots", {})
+        unfilled = [slot for slot in DEFINE_SLOTS if _is_placeholder(slots.get(slot))]
+        if unfilled:
+            return _block(state, phase, f"define-slot-missing:{','.join(unfilled)}")
     if phase == "design" and profile["design"]["gate"] == "evidence_required" and not state["design"].get("evidence"):
         return _block(state, phase, "design-evidence-missing")
     if phase == "specify":
@@ -280,7 +292,84 @@ def deploy(state: dict[str, Any], target: str, *, environment: str = "", approve
 
 
 def load(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text())
+    return _normalize(json.loads(path.read_text()))
+
+
+def _normalize(state: dict[str, Any]) -> dict[str, Any]:
+    """Fold a pre-`define` state file forward so an in-flight project survives the rename.
+
+    A file this function's own first revision corrupted (`current_phase: "defineion"`,
+    from a blanket string replace over `production`) is knowingly not repaired: that
+    revision was never released, so no such file exists outside a checkout of it.
+
+    ponytail: delete once no `.product-studio/project.json` predates the define phase.
+    """
+    # Exact hyphen-delimited phase names only. A blanket string replace turns
+    # `production` into `defineion`, and `production` is a phase. Unconditional: a
+    # half-migrated file can carry a legacy session name with no legacy phase key left.
+    renames = {"product": "define", "research": "define"}
+    rename = lambda value: "-".join(renames.get(part, part) for part in value.split("-"))
+    session = state.get("session", {})
+    for key in ("current_phase", "next_action", "current_gate"):
+        if isinstance(session.get(key), str):
+            session[key] = rename(session[key])
+    last = session.get("last_checkpoint")
+    if isinstance(last, dict) and isinstance(last.get("phase"), str):
+        last["phase"] = rename(last["phase"])
+
+    phases = state.get("phases", {})
+    legacy = [item for item in (phases.pop("product", None), phases.pop("research", None)) if item]
+    # A stub `define` is not a real one — folding around it would drop the legacy
+    # phase's done bar and result on a hand-edited hybrid file.
+    existing_define = phases.get("define")
+    if not isinstance(existing_define, dict):
+        existing_define = {}
+    if legacy and existing_define.get("status") in (None, "pending"):
+        # Take the legacy entry's progress, not its done bar: the surviving legacy bar
+        # is the old `research` one, and a seeded `define` already carries the six-slot
+        # bar that replaced it.
+        folded = {**dict(legacy[-1]), "done_bar": existing_define.get("done_bar") or legacy[-1].get("done_bar", [])}
+        if folded.get("status") == "checkpointed":
+            # A legacy project never inherits a cleared checkpoint: the define gate has
+            # not run against it, and grandfathering it past would mean the six slots are
+            # enforced for new projects only.
+            folded["status"] = "in_progress"
+            # Rewinding the session with it only makes sense at the boundary. A project
+            # already in specify, mvp, or final_planning has built something; yanking its
+            # resume pointer back to define would discard real progress and, for a
+            # finished project, un-approve a session whose brief is still handoff-able.
+            # Leaving the phase `in_progress` keeps the gap visible either way.
+            # `checkpoint` does not advance `current_phase` — only `begin_phase` does —
+            # so a project that *finished* design still reads `current_phase: design`.
+            # A cleared design phase means a Design Contract exists, which is the same
+            # "has built something" this boundary exists to protect.
+            design_cleared = phases.get("design", {}).get("status") == "checkpointed"
+            if session.get("current_phase") in ("define", "design") and not design_cleared:
+                session.update({"status": "in_progress", "current_phase": "define",
+                                "current_gate": "define-done-bar", "next_action": "begin-define",
+                                "approval_status": "pending"})
+                # The folded phase did not clear, so nothing may claim it did. Nothing
+                # later did either — the rewind only fires before design clears.
+                session["last_checkpoint"] = None
+        phases["define"] = folded
+    if legacy:
+        state["phases"] = {phase: phases.get(phase, {"status": "pending", "done_bar": [], "result": None}) for phase in PHASES}
+
+    define = state.setdefault("define", {})
+    define.setdefault("slots", {slot: "" for slot in DEFINE_SLOTS})
+    define.setdefault("research", state.pop("research", {}) or {})
+    state.pop("product", None)
+    design = state.setdefault("design", {})
+    for key in ("prompt", "canvas_provider", "canvas_url"):
+        design.setdefault(key, "")
+    # A profile compiled before the define gate existed has no `define` block, and the
+    # version did not change, so nothing else recompiles it. Derive it the way
+    # compile_profile would rather than letting the gate KeyError on the file this
+    # function exists to rescue.
+    profile = state.get("workflow_profile")
+    if isinstance(profile, dict) and "gate" not in profile.get("define", {}):
+        profile["define"] = {"gate": "advisory" if profile.get("risk_tier") == "low" else "required"}
+    return state
 
 
 def save(path: Path, state: dict[str, Any]) -> None:

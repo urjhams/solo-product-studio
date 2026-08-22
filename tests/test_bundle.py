@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
 sys.path.insert(0, str(ROOT / "scripts"))
-from workflow_runner import attach_behavior_spec, attach_final_brief, begin_phase, can_finish, can_handoff, checkpoint, deploy, mark_implementation_done, new_state, record_answer, record_review, save  # noqa: E402
+from workflow_runner import DEFINE_SLOTS, attach_behavior_spec, attach_final_brief, begin_phase, can_finish, can_handoff, checkpoint, deploy, mark_implementation_done, _normalize, load, new_state, record_answer, record_review, save  # noqa: E402
 import workflow_profile  # noqa: E402
 from validate_behavior_spec import validate as validate_spec  # noqa: E402
 from validate_implementation_brief import validate as validate_brief  # noqa: E402
@@ -230,7 +230,25 @@ class BundleTests(unittest.TestCase):
     def test_product_opportunity_template_has_validation_section(self):
         template = (ROOT / "templates/product-opportunity.md").read_text()
         self.assertIn("## Validation", template)
-        self.assertLess(template.index("## Validation"), template.index("## Summary"))
+        self.assertLess(template.index("## Validation"), template.index("## Define"))
+
+    def test_define_template_carries_every_slot_in_order(self):
+        """The brief is what the define loop writes down. A missing heading is a slot
+        nobody is asked about, which is exactly how mechanism went missing before."""
+        template = (ROOT / "templates/product-opportunity.md").read_text()
+        headings = ["### Customer", "### Pain", "### Outcome", "### Mechanism", "### Pricing", "### Proof"]
+        for heading in headings:
+            self.assertIn(heading, template)
+        positions = [template.index(heading) for heading in headings]
+        self.assertEqual(positions, sorted(positions), "define slots must appear in slot order")
+
+    def test_design_contract_covers_the_four_design_slots(self):
+        contract = (ROOT / "templates/design-contract.md").read_text()
+        for heading in ("## Promise and magic moment", "## Onboarding path",
+                        "## Landing / store listing", "## Design system"):
+            self.assertIn(heading, contract)
+        self.assertIn("hero moment", contract, "the Hackathon done bar still says hero moment")
+        self.assertIn("design-prompt.md", contract)
 
     def test_fluid_workflow_rules_are_explicit(self):
         skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
@@ -325,15 +343,267 @@ class BundleTests(unittest.TestCase):
 
     def test_workflow_runner_requires_independent_review(self):
         state = new_state("demo")
-        begin_phase(state, "product", ["wedge defined"])
-        record_review(state, "product", "self", True, ["looks good"])
-        checkpoint(state, "product")
+        state["define"]["slots"] = {slot: "answered" for slot in DEFINE_SLOTS}
+        begin_phase(state, "define", ["wedge defined"])
+        record_review(state, "define", "self", True, ["looks good"])
+        checkpoint(state, "define")
         self.assertEqual(state["session"]["approval_status"], "self_review_only")
-        self.assertEqual(state["phases"]["product"]["status"], "blocked")
-        record_review(state, "product", "independent", True, [])
-        checkpoint(state, "product")
+        self.assertEqual(state["phases"]["define"]["status"], "blocked")
+        record_review(state, "define", "independent", True, [])
+        checkpoint(state, "define")
         self.assertEqual(state["session"]["approval_status"], "approved")
-        self.assertEqual(state["phases"]["product"]["status"], "checkpointed")
+        self.assertEqual(state["phases"]["define"]["status"], "checkpointed")
+
+    def test_define_slots_block_the_checkpoint_until_every_one_is_filled(self):
+        """Mechanism, pricing, and proof used to be prose nothing read. This is the
+        mechanism that makes the six slots a gate instead of a heading."""
+        state = new_state("demo", "indie")
+        begin_phase(state, "define")
+        record_review(state, "define", "independent", True, [])
+        state["define"]["slots"]["mechanism"] = ""
+        for slot in DEFINE_SLOTS:
+            if slot != "mechanism":
+                state["define"]["slots"][slot] = "answered"
+        checkpoint(state, "define")
+        self.assertEqual(state["phases"]["define"]["status"], "blocked")
+        self.assertEqual(state["session"]["next_action"], "define-slot-missing:mechanism")
+
+        state["define"]["slots"]["mechanism"] = "nightly PR scan posts the longest-blocking review"
+        checkpoint(state, "define")
+        self.assertEqual(state["phases"]["define"]["status"], "checkpointed")
+        self.assertEqual(state["session"]["next_action"], "begin-design")
+
+    def test_a_fast_mode_is_not_asked_to_price_itself(self):
+        for mode in ("prototype", "hackathon"):
+            with self.subTest(mode=mode):
+                state = new_state("demo", mode)
+                begin_phase(state, "define")
+                record_review(state, "define", "self", True, [])
+                checkpoint(state, "define")
+                self.assertEqual(state["phases"]["define"]["status"], "checkpointed")
+        for mode in ("indie", "saas", "startup", "production", "custom"):
+            with self.subTest(mode=mode):
+                self.assertEqual(workflow_profile.compile_profile(mode)["define"]["gate"], "required")
+
+    def _legacy_state(self, mode: str = "indie", *, product_status: str = "checkpointed", research_status: str = "pending") -> dict:
+        """What a project.json written before this change actually looked like: two phases,
+        two top-level blocks, and a compiled profile with no `define` in it."""
+        legacy = new_state("demo", mode)
+        legacy["workflow_profile"].pop("define")
+        legacy["phases"]["product"] = {"status": product_status, "done_bar": ["wedge narrow"], "result": None}
+        legacy["phases"]["research"] = {"status": research_status, "done_bar": [], "result": None}
+        del legacy["phases"]["define"]
+        legacy["product"] = {"target_user": "solo founders"}
+        legacy["research"] = {"sources": ["https://example.com"]}
+        del legacy["define"]
+        legacy["session"]["current_phase"] = "research"
+        legacy["session"]["next_action"] = "begin-research"
+        legacy["session"]["current_gate"] = "research-done-bar"
+        return legacy
+
+    def test_a_pre_define_state_file_still_loads(self):
+        """An in-flight project predates the rename. Reading it must not KeyError —
+        including on the compiled profile, which the version bump did not force."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "project.json"
+            save(path, self._legacy_state())
+
+            state = load(path)
+            self.assertIn("define", state["phases"])
+            self.assertNotIn("product", state["phases"])
+            self.assertEqual(state["session"]["current_phase"], "define")
+            self.assertEqual(state["session"]["current_gate"], "define-done-bar")
+            self.assertEqual(state["session"]["next_action"], "begin-define")
+            self.assertEqual(state["define"]["research"], {"sources": ["https://example.com"]})
+            self.assertEqual(sorted(state["define"]["slots"]), sorted(DEFINE_SLOTS))
+            self.assertEqual(state["workflow_profile"]["define"]["gate"], "required")
+
+            record_review(state, "define", "independent", True, [])
+            checkpoint(state, "define")
+            self.assertEqual(state["phases"]["define"]["status"], "blocked")
+            self.assertTrue(state["session"]["next_action"].startswith("define-slot-missing:"))
+
+    def test_a_legacy_project_is_not_grandfathered_past_the_define_gate(self):
+        """Folding a cleared `research` checkpoint into `define` would mean the six slots
+        are enforced for new projects only. Downgrading the phase is not enough: a project
+        that cleared `research` had already moved on, so the session has to rewind too or
+        nothing ever routes back to the define checkpoint."""
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["session"].update({"current_phase": "design", "next_action": "begin-design",
+                                  "current_gate": "design-done-bar",
+                                  "last_checkpoint": {"phase": "research", "at": "2026-01-01T00:00:00+00:00"},
+                                  "approval_status": "approved"})
+        state = _normalize(legacy)
+        self.assertEqual(state["phases"]["define"]["status"], "in_progress")
+        self.assertEqual(state["session"]["current_phase"], "define")
+        self.assertEqual(state["session"]["next_action"], "begin-define")
+        self.assertEqual(state["session"]["approval_status"], "pending")
+        self.assertIsNone(state["session"]["last_checkpoint"],
+                          "the folded phase did not clear, so nothing may claim it did")
+        record_review(state, "define", "independent", True, [])
+        checkpoint(state, "define")
+        self.assertEqual(state["phases"]["define"]["status"], "blocked")
+
+    def test_normalize_leaves_a_production_phase_alone(self):
+        """`production` contains `product`. A blanket string replace turns a live
+        production project into phase `defineion`, which is not a phase."""
+        state = new_state("demo", "production")
+        begin_phase(state, "production")
+        state["session"]["next_action"] = "verify-in-production"
+        state = _normalize(json.loads(json.dumps(state)))
+        self.assertEqual(state["session"]["current_phase"], "production")
+        self.assertEqual(state["session"]["current_gate"], "production-done-bar")
+        self.assertEqual(state["session"]["next_action"], "verify-in-production")
+        checkpoint(state, state["session"]["current_phase"])  # must not raise
+
+    def test_normalize_does_not_clobber_a_real_define_phase(self):
+        """A stray legacy key must not touch a define phase that already cleared. The
+        anti-grandfathering downgrade applies to a *folded* phase, not to this one."""
+        state = new_state("demo", "indie")
+        state["phases"]["define"] = {"status": "checkpointed", "done_bar": ["all six"], "result": None}
+        state["phases"]["product"] = {"status": "pending", "done_bar": [], "result": None}
+        state["session"].update({"next_action": "begin-design", "approval_status": "approved"})
+        state = _normalize(state)
+        self.assertEqual(state["phases"]["define"]["done_bar"], ["all six"])
+        self.assertEqual(state["phases"]["define"]["status"], "checkpointed")
+        self.assertEqual(state["session"]["next_action"], "begin-design")
+
+    def test_the_rewind_does_not_yank_a_legacy_project_out_of_a_later_phase(self):
+        """`research` is checkpointed for every legacy project with downstream progress,
+        so rewinding on that alone discards the resume position of a project that has
+        already built something."""
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["session"].update({"current_phase": "specify", "current_gate": "specify-done-bar",
+                                  "next_action": "run-phase",
+                                  "last_checkpoint": {"phase": "design", "at": "2026-01-01T00:00:00+00:00"}})
+        state = _normalize(legacy)
+        self.assertEqual(state["session"]["current_phase"], "specify")
+        self.assertEqual(state["session"]["current_gate"], "specify-done-bar")
+        self.assertEqual(state["session"]["next_action"], "run-phase")
+        # the gap stays visible without moving the project
+        self.assertEqual(state["phases"]["define"]["status"], "in_progress")
+
+    def test_the_rewind_does_not_unapprove_a_finished_legacy_project(self):
+        """The worst shape: the session says "unapproved, go do Define" while the brief
+        it produced is still handoff-able."""
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["session"].update({"current_phase": "final_planning", "status": "checkpointed",
+                                  "approval_status": "approved", "next_action": "offer-completion-actions"})
+        state = _normalize(legacy)
+        self.assertEqual(state["session"]["status"], "checkpointed")
+        self.assertEqual(state["session"]["approval_status"], "approved")
+        self.assertEqual(state["session"]["next_action"], "offer-completion-actions")
+
+    def test_a_stub_define_phase_does_not_swallow_the_legacy_one(self):
+        """`new_state` seeds every phase, so a hand-edited hybrid carries a pending
+        `define` stub. Folding around it would silently drop the legacy progress."""
+        state = new_state("demo", "indie")
+        state["phases"]["product"] = {"status": "checkpointed", "done_bar": ["wedge narrow"], "result": None}
+        state["phases"]["research"] = {"status": "checkpointed", "done_bar": ["cited"], "result": {"passed": True}}
+        state = _normalize(state)
+        self.assertEqual(state["phases"]["define"]["status"], "in_progress")
+        self.assertEqual(state["phases"]["define"]["result"], {"passed": True})
+        self.assertEqual(state["phases"]["define"]["done_bar"], ["cited"],
+                         "with no bar of its own, the stub takes the legacy one")
+
+    def test_the_fold_keeps_the_define_done_bar_over_the_legacy_one(self):
+        """`init_project.py` seeds a pending define carrying the six-slot bar. The bar
+        surviving on a legacy entry is the old `research` one, which is not it."""
+        with tempfile.TemporaryDirectory() as directory:
+            self.run_script("init_project.py", "Hybrid", "--directory", directory, "--mode", "indie")
+            path = Path(directory) / ".product-studio" / "project.json"
+            state = json.loads(path.read_text())
+            seeded = state["phases"]["define"]["done_bar"]
+            self.assertIn("mechanism states how the outcome is produced", seeded)
+            state["phases"]["research"] = {"status": "checkpointed",
+                                           "done_bar": ["evidence cited or research plan created"],
+                                           "result": None}
+            state = _normalize(state)
+            self.assertEqual(state["phases"]["define"]["done_bar"], seeded)
+
+    def test_a_cleared_design_phase_is_past_the_rewind_boundary(self):
+        """`checkpoint` does not advance `current_phase`, so a project that *finished*
+        design still reads `current_phase: design`. It has a Design Contract — the same
+        "has built something" the boundary protects one phase deeper."""
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["phases"]["design"] = {"status": "checkpointed", "done_bar": [], "result": None}
+        legacy["session"].update({"current_phase": "design", "current_gate": "specify-done-bar",
+                                  "next_action": "begin-specify", "status": "checkpointed",
+                                  "approval_status": "approved",
+                                  "last_checkpoint": {"phase": "design", "at": "2026-01-01T00:00:00+00:00"}})
+        state = _normalize(legacy)
+        self.assertEqual(state["session"]["next_action"], "begin-specify")
+        self.assertEqual(state["session"]["approval_status"], "approved")
+        self.assertEqual(state["session"]["last_checkpoint"]["phase"], "design",
+                         "design genuinely cleared, and `design` is still in PHASES")
+        self.assertEqual(state["phases"]["define"]["status"], "in_progress")
+
+    def test_the_rewind_still_fires_while_design_is_only_underway(self):
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["phases"]["design"] = {"status": "in_progress", "done_bar": [], "result": None}
+        legacy["session"].update({"current_phase": "design", "next_action": "run-phase"})
+        state = _normalize(legacy)
+        self.assertEqual(state["session"]["next_action"], "begin-define")
+
+    def test_normalize_survives_a_define_phase_that_is_not_a_dict(self):
+        """Hand-edited hybrids are the whole premise of this branch of _normalize."""
+        state = new_state("demo", "indie")
+        state["phases"]["define"] = "checkpointed"
+        state["phases"]["product"] = {"status": "checkpointed", "done_bar": ["wedge narrow"], "result": None}
+        state = _normalize(state)
+        self.assertEqual(state["phases"]["define"]["done_bar"], ["wedge narrow"])
+
+    def test_normalize_repairs_a_session_whose_phases_are_already_migrated(self):
+        """Scoping the rename to the legacy guard would leave a half-migrated hand edit
+        holding a phase name that is not in PHASES. SKILL.md tells the agent to write
+        this file, so half-migrated is a realistic shape."""
+        state = new_state("demo", "indie")
+        state["session"]["current_phase"] = "research"
+        state["session"]["current_gate"] = "research-done-bar"
+        state = _normalize(state)
+        self.assertEqual(state["session"]["current_phase"], "define")
+        self.assertEqual(state["session"]["current_gate"], "define-done-bar")
+        checkpoint(state, state["session"]["current_phase"])  # must not raise
+
+    def test_normalize_is_idempotent(self):
+        for phase in ("research", "design", "specify", "final_planning"):
+            with self.subTest(phase=phase):
+                legacy = self._legacy_state(research_status="checkpointed")
+                legacy["session"]["current_phase"] = phase
+                once = _normalize(legacy)
+                twice = _normalize(json.loads(json.dumps(once)))
+                self.assertEqual(json.dumps(once, sort_keys=True), json.dumps(twice, sort_keys=True))
+
+    def test_a_placeholder_is_not_a_filled_slot(self):
+        """`_is_placeholder` already owns "a field that says nowhere while looking filled in".
+        The define gate is the same failure."""
+        state = new_state("demo", "production")
+        begin_phase(state, "define")
+        record_review(state, "define", "independent", True, [])
+        for value in ("TBD", "todo", "unknown", "   ", "n/a"):
+            with self.subTest(value=value):
+                state["define"]["slots"] = {slot: "answered" for slot in DEFINE_SLOTS}
+                state["define"]["slots"]["pricing"] = value
+                checkpoint(state, "define")
+                self.assertEqual(state["session"]["next_action"], "define-slot-missing:pricing")
+
+    def test_define_gate_refuses_an_override_it_does_not_recognize(self):
+        """compile_profile being the only writer is the enforcement, so an unvalidated
+        enum is a silent way to switch the gate off."""
+        with self.assertRaises(ValueError):
+            workflow_profile.compile_profile("production", {"define": {"gate": "off"}})
+        self.assertEqual(
+            workflow_profile.compile_profile("indie", {"define": {"gate": "advisory"}})["define"]["gate"],
+            "advisory", "an explicit, valid override is still the field's own switch")
+
+    def test_raising_the_risk_tier_tightens_the_define_gate(self):
+        """The unsafe direction is the one that occurs: `init_project.py --mode prototype
+        --risk-tier high` must not leave the gate advisory."""
+        raised = workflow_profile.compile_profile("prototype", {"risk_tier": "high"})
+        self.assertEqual(raised["define"]["gate"], "required")
+        self.assertEqual(raised["design"]["gate"], "evidence_required")
+        lowered = workflow_profile.compile_profile("production", {"risk_tier": "low"})
+        self.assertEqual(lowered["define"]["gate"], "advisory")
 
     def test_prototype_mode_rules_are_explicit(self):
         prototype = (ROOT / "skills/product-studio/references/prototype-mode.md").read_text()
@@ -362,13 +632,14 @@ class BundleTests(unittest.TestCase):
 
     def test_workflow_runner_repair_iteration_and_next_phase(self):
         state = new_state("demo")
-        begin_phase(state, "product")
-        record_review(state, "product", "independent", False, ["wedge too broad"])
+        state["define"]["slots"] = {slot: "answered" for slot in DEFINE_SLOTS}
+        begin_phase(state, "define")
+        record_review(state, "define", "independent", False, ["wedge too broad"])
         self.assertEqual(state["session"]["iteration_count"], 1)
         self.assertEqual(state["session"]["next_action"], "repair-highest-impact-gap")
-        record_review(state, "product", "independent", True, [])
-        checkpoint(state, "product")
-        self.assertEqual(state["session"]["next_action"], "begin-research")
+        record_review(state, "define", "independent", True, [])
+        checkpoint(state, "define")
+        self.assertEqual(state["session"]["next_action"], "begin-design")
 
     def test_final_planning_checkpoint_blocks_a_missing_or_malformed_brief(self):
         state = new_state("demo")
@@ -483,7 +754,7 @@ class BundleTests(unittest.TestCase):
     def test_workbench_detection_and_local_fallback(self):
         self.assertEqual(detect()["status"], "unavailable")
         with tempfile.TemporaryDirectory() as directory:
-            target = publish_local(Path(directory), {"phase": "product"})
+            target = publish_local(Path(directory), {"phase": "define"})
             self.assertTrue(target.exists())
             self.assertIn("local_fallback", target.read_text())
 
@@ -844,6 +1115,7 @@ class ProfileScenarioTests(unittest.TestCase):
             with self.subTest(mode=mode):
                 self.assertIn(compiled["risk_tier"], profile_schema["properties"]["risk_tier"]["enum"])
                 self.assertIn(compiled["delivery_target"], profile_schema["properties"]["delivery_target"]["enum"])
+                self.assertIn(compiled["define"]["gate"], profile_schema["properties"]["define"]["properties"]["gate"]["enum"])
                 self.assertIn(compiled["design"]["gate"], profile_schema["properties"]["design"]["properties"]["gate"]["enum"])
                 self.assertIn(compiled["development"]["merge_policy"], profile_schema["properties"]["development"]["properties"]["merge_policy"]["enum"])
                 self.assertIn(compiled["review"]["lane"], profile_schema["properties"]["review"]["properties"]["lane"]["enum"])
@@ -896,20 +1168,21 @@ class ProfileScenarioTests(unittest.TestCase):
             path = Path(directory) / ".product-studio" / "project.json"
             state = json.loads(path.read_text())
             record_answer(state, "who is this for?", "solo founders", decision_id="D-001")
-            begin_phase(state, "product")
-            record_review(state, "product", "independent", True, [])
-            checkpoint(state, "product")
+            begin_phase(state, "define")
+            record_review(state, "define", "independent", True, [])
+            state["define"]["slots"] = {slot: "answered" for slot in DEFINE_SLOTS}
+            checkpoint(state, "define")
             save(path, state)
 
             resumed = json.loads(path.read_text())
             self.assertEqual(resumed["project"]["mode"], "indie")
             self.assertEqual(resumed["workflow_profile"], workflow_profile.compile_profile("indie"))
             self.assertEqual(resumed["session"]["questions"][0]["decision_id"], "D-001")
-            self.assertEqual(resumed["session"]["last_checkpoint"]["phase"], "product")
-            self.assertEqual(resumed["session"]["next_action"], "begin-research")
+            self.assertEqual(resumed["session"]["last_checkpoint"]["phase"], "define")
+            self.assertEqual(resumed["session"]["next_action"], "begin-design")
             # and the runner can still act on the file it just wrote
-            checkpoint(resumed, "product")
-            self.assertEqual(resumed["phases"]["product"]["status"], "checkpointed")
+            checkpoint(resumed, "define")
+            self.assertEqual(resumed["phases"]["define"]["status"], "checkpointed")
 
     def test_brief_validator_rejects_a_deployment_the_profile_forbids(self):
         brief = (ROOT / "templates/implementation-brief.md").read_text()

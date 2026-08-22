@@ -39,6 +39,18 @@ Fixture data must be plausible but visibly fake. A screenshot of the demo will o
 
 One inversion over Prototype: **the toolchain the team already has running outranks the objectively fastest one.** A hackathon is usually more than one person, and setup cost is paid per head.
 
+## Define rule
+
+`define.gate` compiles to `advisory`. Fill `outcome` and `mechanism` in one line each — the judges
+are told both in the first fifteen seconds of the demo, so they are demo inputs, not paperwork. The
+event supplies `customer` and `pain`; record them as given. Defer `pricing` and `proof`.
+
+## Design rule
+
+Magic moment only. Onboarding is already on the cut list, and so are the landing/store copy and the
+design system. Write the Design Prompt anyway when time allows — a canvas is faster to reject than a
+built screen.
+
 ## Research rule
 
 Skip it. No idea validation, no market probe. The event chose the problem, and hours spent confirming it are hours not spent on the thing being judged.

@@ -16,6 +16,7 @@ A mode nothing enforces is a label. Before this existed, `hackathon` was a strin
 | `delivery_target` | local_demo | local_demo | pull_request | preview | preview | production | code_only |
 | `planning.spec_gate` | warn | warn | block | block | block | block | block |
 | `planning.max_behaviors` | 7 | 9 | — | — | — | — | — |
+| `define.gate` | advisory | advisory | required | required | required | required | required |
 | `design.gate` | advisory | advisory | required | required | required | evidence_required | required |
 | `development.refactor_phase` | no | no | yes | yes | yes | yes | yes |
 | `development.pull_request_required` | no | no | yes | yes | yes | yes | yes |
@@ -52,6 +53,8 @@ Cumulative, and never cuttable. An override may add entries; nothing removes one
 | Every acceptance criterion cites its `BH-###` | `planning.spec_gate` | **enforced** — `validate_implementation_brief.py` |
 | The `docs/agent/BEHAVIORS.md` mirror must be byte-identical | `planning.spec_gate` | **enforced** — `validate_behavior_spec.py --mirror` |
 | An independent reviewer must clear the phase | `review.independent_required` | **enforced** — `workflow_runner.checkpoint` |
+| No define slot is left empty or a placeholder | `define.gate` | **enforced** — `workflow_runner.checkpoint` |
+| A define slot is *filled* — answer, confidence, and a citation or an `A-###` | — | advisory — the checkpoint checks emptiness and placeholders, nothing reads the confidence or the citation |
 | The critical interaction needs user evidence, not just a complete artifact | `design.gate` | **enforced** — `workflow_runner.checkpoint` |
 | A brief may not plan a deployment | `deployment.allowed` | **enforced** — `validate_implementation_brief.py`, `workflow_runner.deploy` |
 | Finishing a task means opening its PR | `development.pull_request_required` | **ci-enforced** — the generated verdict hook and branch protection |
@@ -69,6 +72,7 @@ Cumulative, and never cuttable. An override may add entries; nothing removes one
 `compile_profile(mode, overrides)` merges one level deep: nested dicts merge per key, scalars and lists replace. Two things happen after the merge, so an override can trigger them:
 
 - `risk_tier: high` forces `design.gate: evidence_required` and unions in the production safety floor. This is why the design evidence gate needs no separate switch.
+- `define.gate` derives from `risk_tier` at compile time: `low` is `advisory`, everything else is `required`. Prototype and Hackathon are the only low-tier modes, so they are the only ones a pricing or proof slot does not block. An explicit `define.gate` override still wins.
 - `deployment.allowed: true` with a `delivery_target` below `staging` raises. A deploy needs somewhere to deploy to.
 
 `version` and `mode` are stamped last, so no override can forge either.

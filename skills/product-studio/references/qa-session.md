@@ -21,6 +21,12 @@ Persist `session.status`, `session.current_phase`, `session.current_gate`, `sess
 6. Record the answer and update the relevant product, constraint, assumption, or decision section immediately.
 7. Repeat only until the phase can run safely; do not ask the user to choose internal procedures.
 
+In the define phase this loop runs once per slot, in slot order, with a bounded research pass
+attached to the slots that need one — `references/define-loop.md` carries the order, the research
+triggers, and what makes a slot filled rather than merely written. In the design phase,
+`references/design-loop.md` carries the same for the magic moment, onboarding path, landing/store
+copy, and design system.
+
 ## Intent extraction (intake only)
 
 For a raw or vague idea, `references/idea-validation.md` runs first, before this section. The
