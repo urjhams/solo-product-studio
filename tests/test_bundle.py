@@ -438,8 +438,8 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(state["session"]["current_phase"], "define")
         self.assertEqual(state["session"]["next_action"], "begin-define")
         self.assertEqual(state["session"]["approval_status"], "pending")
-        self.assertEqual(state["session"]["last_checkpoint"]["phase"], "define",
-                         "last_checkpoint must not name a phase that is no longer in PHASES")
+        self.assertIsNone(state["session"]["last_checkpoint"],
+                          "the folded phase did not clear, so nothing may claim it did")
         record_review(state, "define", "independent", True, [])
         checkpoint(state, "define")
         self.assertEqual(state["phases"]["define"]["status"], "blocked")
@@ -468,6 +468,42 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(state["phases"]["define"]["status"], "checkpointed")
         self.assertEqual(state["session"]["next_action"], "begin-design")
 
+    def test_the_rewind_does_not_yank_a_legacy_project_out_of_a_later_phase(self):
+        """`research` is checkpointed for every legacy project with downstream progress,
+        so rewinding on that alone discards the resume position of a project that has
+        already built something."""
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["session"].update({"current_phase": "specify", "current_gate": "specify-done-bar",
+                                  "next_action": "run-phase",
+                                  "last_checkpoint": {"phase": "design", "at": "2026-01-01T00:00:00+00:00"}})
+        state = _normalize(legacy)
+        self.assertEqual(state["session"]["current_phase"], "specify")
+        self.assertEqual(state["session"]["current_gate"], "specify-done-bar")
+        self.assertEqual(state["session"]["next_action"], "run-phase")
+        # the gap stays visible without moving the project
+        self.assertEqual(state["phases"]["define"]["status"], "in_progress")
+
+    def test_the_rewind_does_not_unapprove_a_finished_legacy_project(self):
+        """The worst shape: the session says "unapproved, go do Define" while the brief
+        it produced is still handoff-able."""
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["session"].update({"current_phase": "final_planning", "status": "checkpointed",
+                                  "approval_status": "approved", "next_action": "offer-completion-actions"})
+        state = _normalize(legacy)
+        self.assertEqual(state["session"]["status"], "checkpointed")
+        self.assertEqual(state["session"]["approval_status"], "approved")
+        self.assertEqual(state["session"]["next_action"], "offer-completion-actions")
+
+    def test_a_stub_define_phase_does_not_swallow_the_legacy_one(self):
+        """`new_state` seeds every phase, so a hand-edited hybrid carries a pending
+        `define` stub. Folding around it would silently drop the legacy done bar."""
+        state = new_state("demo", "indie")
+        state["phases"]["product"] = {"status": "checkpointed", "done_bar": ["wedge narrow"], "result": None}
+        state["phases"]["research"] = {"status": "checkpointed", "done_bar": ["cited"], "result": None}
+        state = _normalize(state)
+        self.assertEqual(state["phases"]["define"]["done_bar"], ["cited"])
+        self.assertEqual(state["phases"]["define"]["status"], "in_progress")
+
     def test_normalize_repairs_a_session_whose_phases_are_already_migrated(self):
         """Scoping the rename to the legacy guard would leave a half-migrated hand edit
         holding a phase name that is not in PHASES. SKILL.md tells the agent to write
@@ -481,9 +517,13 @@ class BundleTests(unittest.TestCase):
         checkpoint(state, state["session"]["current_phase"])  # must not raise
 
     def test_normalize_is_idempotent(self):
-        once = _normalize(self._legacy_state())
-        twice = _normalize(json.loads(json.dumps(once)))
-        self.assertEqual(json.dumps(once, sort_keys=True), json.dumps(twice, sort_keys=True))
+        for phase in ("research", "design", "specify", "final_planning"):
+            with self.subTest(phase=phase):
+                legacy = self._legacy_state(research_status="checkpointed")
+                legacy["session"]["current_phase"] = phase
+                once = _normalize(legacy)
+                twice = _normalize(json.loads(json.dumps(once)))
+                self.assertEqual(json.dumps(once, sort_keys=True), json.dumps(twice, sort_keys=True))
 
     def test_a_placeholder_is_not_a_filled_slot(self):
         """`_is_placeholder` already owns "a field that says nowhere while looking filled in".

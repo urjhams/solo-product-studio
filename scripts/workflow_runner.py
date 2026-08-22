@@ -298,6 +298,10 @@ def load(path: Path) -> dict[str, Any]:
 def _normalize(state: dict[str, Any]) -> dict[str, Any]:
     """Fold a pre-`define` state file forward so an in-flight project survives the rename.
 
+    A file this function's own first revision corrupted (`current_phase: "defineion"`,
+    from a blanket string replace over `production`) is knowingly not repaired: that
+    revision was never released, so no such file exists outside a checkout of it.
+
     ponytail: delete once no `.product-studio/project.json` predates the define phase.
     """
     # Exact hyphen-delimited phase names only. A blanket string replace turns
@@ -315,18 +319,27 @@ def _normalize(state: dict[str, Any]) -> dict[str, Any]:
 
     phases = state.get("phases", {})
     legacy = [item for item in (phases.pop("product", None), phases.pop("research", None)) if item]
-    if legacy and not phases.get("define"):
+    # A stub `define` is not a real one — folding around it would drop the legacy
+    # phase's done bar and result on a hand-edited hybrid file.
+    if legacy and phases.get("define", {}).get("status") in (None, "pending"):
         folded = dict(legacy[-1])
         if folded.get("status") == "checkpointed":
             # A legacy project never inherits a cleared checkpoint: the define gate has
             # not run against it, and grandfathering it past would mean the six slots are
-            # enforced for new projects only. Rewind the session too — downgrading the
-            # phase while `next_action` still says `begin-design` changes the label and
-            # nothing else, because nothing would route back to the define checkpoint.
+            # enforced for new projects only.
             folded["status"] = "in_progress"
-            session.update({"status": "in_progress", "current_phase": "define",
-                            "current_gate": "define-done-bar", "next_action": "begin-define",
-                            "approval_status": "pending"})
+            # Rewinding the session with it only makes sense at the boundary. A project
+            # already in specify, mvp, or final_planning has built something; yanking its
+            # resume pointer back to define would discard real progress and, for a
+            # finished project, un-approve a session whose brief is still handoff-able.
+            # Leaving the phase `in_progress` keeps the gap visible either way.
+            if session.get("current_phase") in ("define", "design"):
+                session.update({"status": "in_progress", "current_phase": "define",
+                                "current_gate": "define-done-bar", "next_action": "begin-define",
+                                "approval_status": "pending"})
+                # The folded phase did not clear, so nothing may claim it did — and the
+                # phase that genuinely cleared no longer exists under that name.
+                session["last_checkpoint"] = None
         phases["define"] = folded
     if legacy:
         state["phases"] = {phase: phases.get(phase, {"status": "pending", "done_bar": [], "result": None}) for phase in PHASES}
