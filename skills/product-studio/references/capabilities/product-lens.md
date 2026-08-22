@@ -1,14 +1,26 @@
 # product-lens
 
-Purpose: turn a rough idea into a narrow, testable Product Opportunity Brief.
+Purpose: turn a validated idea into a narrow, testable Product Opportunity Brief by filling the six
+Define slots.
 
-Inputs: user context, problem, stage, mode, platform, constraints.
+Inputs: user context, the idea-validation verdict and its cited findings, stage, mode, platform,
+constraints.
 
-Outputs: target user, context, job-to-be-done, workaround, pain frequency/severity, cost of inaction, promise, wedge, alternatives, differentiation/retention/monetization/distribution hypotheses, platform surface hypothesis, assumptions, risks, next experiment.
+Outputs: the six slots — `customer`, `pain`, `outcome`, `mechanism`, `pricing`, `proof` — each with
+an answer, a confidence number, and a citation or an `A-###`; then wedge, promise, alternatives,
+differentiation/retention/distribution hypotheses, platform surface hypothesis, assumptions, risks,
+and next experiment, all derived from the six rather than asserted alongside them.
 
-Gate: identifiable target user, specific problem, actionable outcome, narrow wedge, recorded critical uncertainties.
+Gate: every slot filled per `references/done-bars.md` `## Define`, and — wherever the compiled
+profile sets `define.gate: required` — non-empty in `define.slots`, which
+`workflow_runner.checkpoint` enforces.
 
-Handoff: `evidence-scout` unless the user already has adequate evidence.
+Procedure: `references/define-loop.md`. Run the per-slot question/research/confidence loop rather
+than drafting the brief in one pass; the brief is what the loop writes down, not a substitute for it.
 
-When `idea-validator` ran, populate the Product Opportunity Brief's `## Validation` section from
-its verdict and cited findings instead of re-deriving alternatives and wedge from scratch.
+Handoff: `product-to-pixels` via `references/design-loop.md`. Carry `outcome` to the Landing
+headline, `mechanism` to the Landing subhead and the magic moment, and `proof` to the three Landing
+proof points.
+
+When `idea-validator` ran, populate the Product Opportunity Brief's `## Validation` section from its
+verdict and cited findings instead of re-deriving alternatives and wedge from scratch.

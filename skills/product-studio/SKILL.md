@@ -9,7 +9,9 @@ Act as the user's product QA partner and implementation planner. Begin with a sh
 
 The public slash entry is `/product-studio`. If the host has no slash-command surface, accept `Use product-studio to help me build a product.` instead. A second public skill, `/product-recheck`, re-evaluates a project already under development; route there instead of restarting intake when the user has code and wants a verdict.
 
-The lifecycle is **Discover → Specify → Red → Green → Refactor**. Discover is the intake, product, research, and design phases below. Specify turns the Design Contract into behaviors and closes every ambiguity in them. Red, Green, and Refactor belong to the implementing agent and are governed by the Behavior Spec this skill hands it. A test suite written over a misread requirement passes and proves nothing, so the misreading has to be caught in Specify.
+The pillars the session walks with the user are **Idea → Define → Design → Build**. Idea is intake and the mandatory sense-check; Define fills six slots — customer, pain, outcome, mechanism, pricing, proof — researching each as it goes; Design turns those into a magic moment, an onboarding path, landing/store copy, a design system, and a canvas the user can look at; Build is Specify onward.
+
+Underneath, the lifecycle is **Discover → Specify → Red → Green → Refactor**, and the runner phases are `intake`, `define`, `design`, `specify`, `mvp`, `review`, `production`, `final_planning`. Discover is Idea, Define, and Design. Specify turns the Design Contract into behaviors and closes every ambiguity in them. Red, Green, and Refactor belong to the implementing agent and are governed by the Behavior Spec this skill hands it. A test suite written over a misread requirement passes and proves nothing, so the misreading has to be caught in Specify.
 
 ## Start every session
 
@@ -77,11 +79,12 @@ Route only the relevant workflow:
 
 | Situation | Default path |
 |---|---|
-| Prototype / idea validation | Idea Validation → Product-to-Pixels (short) → Spec Cartographer (short form) → MVP Forge (prototype plan) |
-| Mode fork (Indie vs Startup) | Market Probe → Mode recommendation → Product Lens |
-| Rough idea | Idea Validation → Product Lens → Evidence Scout → Product-to-Pixels → Spec Cartographer → MVP Forge |
-| Existing research | Evidence Scout → Product-to-Pixels → Spec Cartographer → MVP Forge |
+| Prototype / idea validation | Idea Validation → Define (short, `define.gate: advisory`) → Product-to-Pixels (short) → Spec Cartographer (short form) → MVP Forge (prototype plan) |
+| Mode fork (Indie vs Startup) | Market Probe → Mode recommendation → Define |
+| Rough idea | Idea Validation → Define (six slots, research per slot) → Design (contract + prompt + canvas) → Spec Cartographer → MVP Forge |
+| Existing research | Define (slots seeded from the existing research) → Design → Spec Cartographer → MVP Forge |
 | Existing UX/UI | Design Contract Validator → Spec Cartographer → MVP Forge |
+| Existing definition, no design | Design (magic moment, onboarding, landing/store, design system) → Spec Cartographer → MVP Forge |
 | MVP planning/build | Spec Cartographer → MVP Forge, with Technical Feasibility and Scope Guard |
 | Mid-development re-evaluation | Reality Check → Drift Report → Spec Hardening → Verdict (`/product-recheck`) |
 | Existing MVP | MVP Auditor → Product Synthesizer → Production Blueprint |
@@ -134,9 +137,9 @@ Use the smallest applicable question set. Record each answer before asking the n
 
 **Mode questions:** solo or team, consumer or business buyer, recurring workflow or one-off use, monetization intent, demo versus learning versus scale goal, and operational constraints.
 
-**Research questions:** which assumptions matter most, what evidence already exists, which competitors or alternatives matter, and whether external research is permitted/available.
+**Define questions** — one per slot, in order, each carrying your guess, each researched where `references/define-loop.md` says to: who exactly the customer is and how one is reached; what breaks today, how often, and what it costs; what is measurably different afterwards; **how the product produces that outcome** — specific, causal, and falsifiable; what model and what number, and who signs; and what is evidenced versus still assumed. Also ask which assumptions matter most, what evidence already exists, and whether external research is permitted or available.
 
-**Design questions:** product promise, hero moment, primary flow, visual feeling, platform conventions, accessibility needs, and what must be cut.
+**Design questions:** product promise, magic moment, the shortest onboarding path to it, primary flow, landing/store positioning, design system reach, visual feeling, platform conventions, accessibility needs, and what must be cut.
 
 **MVP questions:** critical path, mock boundary, essential real integration, persistence, time allocation, cut trigger, test risk, and definition of done.
 
@@ -152,9 +155,10 @@ For every artifact, read the matching template, fill all required sections, show
 
 Use the internal capability contracts in `references/capabilities/` and templates in `templates/` to produce. In an installed bundle these directories are packaged beside `SKILL.md`; in a repository checkout they are also available at the repository root.
 
-- Product Opportunity Brief
+- Product Opportunity Brief (the six Define slots)
 - Evidence Pack
 - Design Contract
+- Design Prompt
 - Behavior Spec
 - MVP Build Plan
 - MVP Review Report
@@ -164,7 +168,7 @@ Use the internal capability contracts in `references/capabilities/` and template
 - Implementation Brief
 - Re-evaluation Verdict (`/product-recheck`)
 
-Read only the relevant contract and template for the current stage. Read `references/idea-validation.md` before intent extraction whenever the idea is raw or vague, `references/operating-modes.md` when selecting or explaining a mode, `references/market-probe.md` before recommending Indie App versus Startup or when revisiting a mode, `references/platform-decision.md` when choosing the platform surface and track, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
+Read only the relevant contract and template for the current stage. Read `references/define-loop.md` before the define phase and `references/design-loop.md` before the design phase — they carry the slot loops, the research bounds, and the canvas adapter procedure. Read `references/idea-validation.md` before intent extraction whenever the idea is raw or vague, `references/operating-modes.md` when selecting or explaining a mode, `references/market-probe.md` before recommending Indie App versus Startup or when revisiting a mode, `references/platform-decision.md` when choosing the platform surface and track, `references/adapters.md` when checking integrations, and `references/framework-research.md` when adapting behavior to the host agent.
 Read `references/prototype-mode.md` before running any phase in Prototype mode and `references/hackathon-mode.md` before any Hackathon phase; each overrides the default scope, mock, platform, research, testing, and done-bar rules for its mode.
 Read `references/workflow-profile.md` when a rule's strictness is in question — it is the table every gate reads, and it labels each rule `enforced`, `ci-enforced`, or `advisory`. Read `references/host-capabilities.md` before claiming a rule is enforced on a host that cannot enforce it.
 Read `references/behavior-discovery.md` and `references/spec-hardening.md` before running the `specify` phase, and `references/spec-hardening.md` again whenever a requirement changes after Specify — a changed requirement reopens the sweep.
@@ -174,6 +178,8 @@ Use `scripts/workflow_runner.py` when deterministic phase transitions, review re
 When an MVP Build Plan or Production Blueprint is approved, run the final-planning protocol in `references/final-planning.md` and generate the Implementation Brief before implementation or GitHub delivery.
 
 For UX research, ask whether to use Mobbin, public sources, generated Mobbin queries, user references, or the bundled pattern library. Never claim Mobbin was used unless the adapter succeeds.
+
+The Design phase always writes the Design Prompt, and invokes the host's `/design` canvas skill on top of it when one exists. Record which actually ran in `design.canvas_provider`; an empty value is the honest answer when no provider was available, and the prompt is then the user's to run elsewhere. Never describe a canvas that was not published.
 
 ## Scope expansion
 
@@ -197,7 +203,7 @@ After an approved MVP or production plan and an approved Implementation Brief, o
 
 ## Persistence
 
-Maintain one canonical state file at `.product-studio/project.json` and Markdown artifacts under `.product-studio/artifacts/`. Update only the relevant sections. Store capability availability, goal, house rules, mode, the compiled `workflow_profile`, stage, path, questions answered, assumptions, decisions, behaviors and open ambiguity counts, phase status, done bars, review iterations, approvals, and next gate. `scripts/workflow_runner.py` is the canonical writer — the file it operates on and the file this skill declares canonical are the same file. The Behavior Spec is the one artifact that also lives in the repository, mirrored at `docs/agent/BEHAVIORS.md` and tracked in git with the code it describes. Use `scripts/init_project.py` or `scripts/discover_capabilities.py` when deterministic local setup is useful.
+Maintain one canonical state file at `.product-studio/project.json` and Markdown artifacts under `.product-studio/artifacts/`. Update only the relevant sections. Store capability availability, goal, house rules, mode, the compiled `workflow_profile`, stage, path, questions answered, the six `define.slots`, the design `prompt`/`canvas_provider`/`canvas_url`, assumptions, decisions, behaviors and open ambiguity counts, phase status, done bars, review iterations, approvals, and next gate. `scripts/workflow_runner.py` is the canonical writer — the file it operates on and the file this skill declares canonical are the same file. The Behavior Spec is the one artifact that also lives in the repository, mirrored at `docs/agent/BEHAVIORS.md` and tracked in git with the code it describes. Use `scripts/init_project.py` or `scripts/discover_capabilities.py` when deterministic local setup is useful.
 
 ## Host portability
 

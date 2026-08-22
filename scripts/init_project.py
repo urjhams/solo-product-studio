@@ -18,9 +18,8 @@ from workflow_runner import new_state  # noqa: E402
 
 DONE_BARS = {
     "intake": ["goal defined", "house rules confirmed"],
-    "product": ["target user defined", "wedge narrow", "assumptions recorded"],
-    "research": ["evidence cited or research plan created", "uncertainty labeled"],
-    "design": ["promise, hero moment, flow, scope, three principles defined"],
+    "define": ["customer named and reachable", "pain evidenced with frequency and cost", "outcome measurable", "mechanism states how the outcome is produced", "pricing carries a number and a source", "proof separates fact from inference"],
+    "design": ["promise defined", "magic moment reachable from the onboarding path", "onboarding path written step by step", "primary flow and screen/state scope defined", "exactly three principles", "landing / store copy written", "design system defined", "accessibility requirements defined", "cut list written", "design prompt written"],
     "specify": ["behaviors cover every in-scope capability", "every behavior has an observable and a source", "zero open ambiguities", "mirror in sync"],
     "mvp": ["core flow executable", "mocks explicit", "cuts explicit", "demo defined"],
     "review": ["independent findings recorded", "recommendation supported"],
