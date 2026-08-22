@@ -54,7 +54,7 @@ Cumulative, and never cuttable. An override may add entries; nothing removes one
 | The `docs/agent/BEHAVIORS.md` mirror must be byte-identical | `planning.spec_gate` | **enforced** — `validate_behavior_spec.py --mirror` |
 | An independent reviewer must clear the phase | `review.independent_required` | **enforced** — `workflow_runner.checkpoint` |
 | No define slot is left empty or a placeholder | `define.gate` | **enforced** — `workflow_runner.checkpoint` |
-| A define slot is *filled* — answer, confidence, and a citation or an `A-###` | — | advisory — the checkpoint checks non-emptiness, nothing reads the confidence or the citation |
+| A define slot is *filled* — answer, confidence, and a citation or an `A-###` | — | advisory — the checkpoint checks emptiness and placeholders, nothing reads the confidence or the citation |
 | The critical interaction needs user evidence, not just a complete artifact | `design.gate` | **enforced** — `workflow_runner.checkpoint` |
 | A brief may not plan a deployment | `deployment.allowed` | **enforced** — `validate_implementation_brief.py`, `workflow_runner.deploy` |
 | Finishing a task means opening its PR | `development.pull_request_required` | **ci-enforced** — the generated verdict hook and branch protection |

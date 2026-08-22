@@ -190,9 +190,9 @@ def checkpoint(state: dict[str, Any], phase: str) -> dict[str, Any]:
     spec_blocks = profile["planning"]["spec_gate"] == "block"
     if phase == "define" and profile["define"]["gate"] == "required":
         slots = state.get("define", {}).get("slots", {})
-        missing = [slot for slot in DEFINE_SLOTS if _is_placeholder(slots.get(slot))]
-        if missing:
-            return _block(state, phase, f"define-slot-missing:{','.join(missing)}")
+        unfilled = [slot for slot in DEFINE_SLOTS if _is_placeholder(slots.get(slot))]
+        if unfilled:
+            return _block(state, phase, f"define-slot-missing:{','.join(unfilled)}")
     if phase == "design" and profile["design"]["gate"] == "evidence_required" and not state["design"].get("evidence"):
         return _block(state, phase, "design-evidence-missing")
     if phase == "specify":
@@ -300,25 +300,37 @@ def _normalize(state: dict[str, Any]) -> dict[str, Any]:
 
     ponytail: delete once no `.product-studio/project.json` predates the define phase.
     """
+    # Exact hyphen-delimited phase names only. A blanket string replace turns
+    # `production` into `defineion`, and `production` is a phase. Unconditional: a
+    # half-migrated file can carry a legacy session name with no legacy phase key left.
+    renames = {"product": "define", "research": "define"}
+    rename = lambda value: "-".join(renames.get(part, part) for part in value.split("-"))
+    session = state.get("session", {})
+    for key in ("current_phase", "next_action", "current_gate"):
+        if isinstance(session.get(key), str):
+            session[key] = rename(session[key])
+    last = session.get("last_checkpoint")
+    if isinstance(last, dict) and isinstance(last.get("phase"), str):
+        last["phase"] = rename(last["phase"])
+
     phases = state.get("phases", {})
     legacy = [item for item in (phases.pop("product", None), phases.pop("research", None)) if item]
-    if legacy:
-        # A legacy project never inherits a cleared checkpoint: the define gate has
-        # not run against it, and grandfathering it past would mean the six slots are
-        # enforced for new projects only. Fold it to in_progress and make it earn it.
-        folded = phases.get("define") or dict(legacy[-1])
+    if legacy and not phases.get("define"):
+        folded = dict(legacy[-1])
         if folded.get("status") == "checkpointed":
-            folded = {**folded, "status": "in_progress"}
+            # A legacy project never inherits a cleared checkpoint: the define gate has
+            # not run against it, and grandfathering it past would mean the six slots are
+            # enforced for new projects only. Rewind the session too — downgrading the
+            # phase while `next_action` still says `begin-design` changes the label and
+            # nothing else, because nothing would route back to the define checkpoint.
+            folded["status"] = "in_progress"
+            session.update({"status": "in_progress", "current_phase": "define",
+                            "current_gate": "define-done-bar", "next_action": "begin-define",
+                            "approval_status": "pending"})
         phases["define"] = folded
+    if legacy:
         state["phases"] = {phase: phases.get(phase, {"status": "pending", "done_bar": [], "result": None}) for phase in PHASES}
-        # Exact phase names only. A blanket string replace turns `production` into
-        # `defineion`, and `production` is a phase.
-        renames = {"product": "define", "research": "define"}
-        session = state.get("session", {})
-        for key in ("current_phase", "next_action", "current_gate"):
-            value = session.get(key)
-            if isinstance(value, str):
-                session[key] = "-".join(renames.get(part, part) for part in value.split("-"))
+
     define = state.setdefault("define", {})
     define.setdefault("slots", {slot: "" for slot in DEFINE_SLOTS})
     define.setdefault("research", state.pop("research", {}) or {})

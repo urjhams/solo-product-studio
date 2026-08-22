@@ -52,7 +52,8 @@ on the slots that need one. A slot is filled when it has an answer, a confidence
 citation or an `A-###` saying it has none — that bar is the done bar's, and the agent's to hold.
 What the runner mechanically checks is narrower and therefore honest: wherever the compiled profile
 sets `define.gate: required`, the checkpoint blocks with `define-slot-missing:<slots>` until no slot
-is empty or a placeholder (`TBD`, `todo`, `unknown`).
+is empty or a placeholder (`TBD`, `todo`, `unknown`, `none`). A free product records its pricing model
+as `free`, not `none`.
 
 Mechanism is the slot most products are missing. Customer, pain, and outcome describe a wish;
 mechanism is the sentence saying why the wish comes true, and it has to be specific, causal, and

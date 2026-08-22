@@ -425,9 +425,21 @@ class BundleTests(unittest.TestCase):
 
     def test_a_legacy_project_is_not_grandfathered_past_the_define_gate(self):
         """Folding a cleared `research` checkpoint into `define` would mean the six slots
-        are enforced for new projects only."""
-        state = _normalize(self._legacy_state(product_status="checkpointed", research_status="checkpointed"))
+        are enforced for new projects only. Downgrading the phase is not enough: a project
+        that cleared `research` had already moved on, so the session has to rewind too or
+        nothing ever routes back to the define checkpoint."""
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["session"].update({"current_phase": "design", "next_action": "begin-design",
+                                  "current_gate": "design-done-bar",
+                                  "last_checkpoint": {"phase": "research", "at": "2026-01-01T00:00:00+00:00"},
+                                  "approval_status": "approved"})
+        state = _normalize(legacy)
         self.assertEqual(state["phases"]["define"]["status"], "in_progress")
+        self.assertEqual(state["session"]["current_phase"], "define")
+        self.assertEqual(state["session"]["next_action"], "begin-define")
+        self.assertEqual(state["session"]["approval_status"], "pending")
+        self.assertEqual(state["session"]["last_checkpoint"]["phase"], "define",
+                         "last_checkpoint must not name a phase that is no longer in PHASES")
         record_review(state, "define", "independent", True, [])
         checkpoint(state, "define")
         self.assertEqual(state["phases"]["define"]["status"], "blocked")
@@ -445,11 +457,33 @@ class BundleTests(unittest.TestCase):
         checkpoint(state, state["session"]["current_phase"])  # must not raise
 
     def test_normalize_does_not_clobber_a_real_define_phase(self):
+        """A stray legacy key must not touch a define phase that already cleared. The
+        anti-grandfathering downgrade applies to a *folded* phase, not to this one."""
         state = new_state("demo", "indie")
         state["phases"]["define"] = {"status": "checkpointed", "done_bar": ["all six"], "result": None}
         state["phases"]["product"] = {"status": "pending", "done_bar": [], "result": None}
+        state["session"].update({"next_action": "begin-design", "approval_status": "approved"})
         state = _normalize(state)
         self.assertEqual(state["phases"]["define"]["done_bar"], ["all six"])
+        self.assertEqual(state["phases"]["define"]["status"], "checkpointed")
+        self.assertEqual(state["session"]["next_action"], "begin-design")
+
+    def test_normalize_repairs_a_session_whose_phases_are_already_migrated(self):
+        """Scoping the rename to the legacy guard would leave a half-migrated hand edit
+        holding a phase name that is not in PHASES. SKILL.md tells the agent to write
+        this file, so half-migrated is a realistic shape."""
+        state = new_state("demo", "indie")
+        state["session"]["current_phase"] = "research"
+        state["session"]["current_gate"] = "research-done-bar"
+        state = _normalize(state)
+        self.assertEqual(state["session"]["current_phase"], "define")
+        self.assertEqual(state["session"]["current_gate"], "define-done-bar")
+        checkpoint(state, state["session"]["current_phase"])  # must not raise
+
+    def test_normalize_is_idempotent(self):
+        once = _normalize(self._legacy_state())
+        twice = _normalize(json.loads(json.dumps(once)))
+        self.assertEqual(json.dumps(once, sort_keys=True), json.dumps(twice, sort_keys=True))
 
     def test_a_placeholder_is_not_a_filled_slot(self):
         """`_is_placeholder` already owns "a field that says nowhere while looking filled in".
