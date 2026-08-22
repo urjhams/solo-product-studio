@@ -322,7 +322,11 @@ def _normalize(state: dict[str, Any]) -> dict[str, Any]:
     # A stub `define` is not a real one — folding around it would drop the legacy
     # phase's done bar and result on a hand-edited hybrid file.
     if legacy and phases.get("define", {}).get("status") in (None, "pending"):
-        folded = dict(legacy[-1])
+        # Take the legacy entry's progress, not its done bar: the surviving legacy bar
+        # is the old `research` one, and a seeded `define` already carries the six-slot
+        # bar that replaced it.
+        existing = phases.get("define") or {}
+        folded = {**dict(legacy[-1]), "done_bar": existing.get("done_bar") or legacy[-1].get("done_bar", [])}
         if folded.get("status") == "checkpointed":
             # A legacy project never inherits a cleared checkpoint: the define gate has
             # not run against it, and grandfathering it past would mean the six slots are

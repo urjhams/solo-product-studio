@@ -496,13 +496,30 @@ class BundleTests(unittest.TestCase):
 
     def test_a_stub_define_phase_does_not_swallow_the_legacy_one(self):
         """`new_state` seeds every phase, so a hand-edited hybrid carries a pending
-        `define` stub. Folding around it would silently drop the legacy done bar."""
+        `define` stub. Folding around it would silently drop the legacy progress."""
         state = new_state("demo", "indie")
         state["phases"]["product"] = {"status": "checkpointed", "done_bar": ["wedge narrow"], "result": None}
-        state["phases"]["research"] = {"status": "checkpointed", "done_bar": ["cited"], "result": None}
+        state["phases"]["research"] = {"status": "checkpointed", "done_bar": ["cited"], "result": {"passed": True}}
         state = _normalize(state)
-        self.assertEqual(state["phases"]["define"]["done_bar"], ["cited"])
         self.assertEqual(state["phases"]["define"]["status"], "in_progress")
+        self.assertEqual(state["phases"]["define"]["result"], {"passed": True})
+        self.assertEqual(state["phases"]["define"]["done_bar"], ["cited"],
+                         "with no bar of its own, the stub takes the legacy one")
+
+    def test_the_fold_keeps_the_define_done_bar_over_the_legacy_one(self):
+        """`init_project.py` seeds a pending define carrying the six-slot bar. The bar
+        surviving on a legacy entry is the old `research` one, which is not it."""
+        with tempfile.TemporaryDirectory() as directory:
+            self.run_script("init_project.py", "Hybrid", "--directory", directory, "--mode", "indie")
+            path = Path(directory) / ".product-studio" / "project.json"
+            state = json.loads(path.read_text())
+            seeded = state["phases"]["define"]["done_bar"]
+            self.assertIn("mechanism states how the outcome is produced", seeded)
+            state["phases"]["research"] = {"status": "checkpointed",
+                                           "done_bar": ["evidence cited or research plan created"],
+                                           "result": None}
+            state = _normalize(state)
+            self.assertEqual(state["phases"]["define"]["done_bar"], seeded)
 
     def test_normalize_repairs_a_session_whose_phases_are_already_migrated(self):
         """Scoping the rename to the legacy guard would leave a half-migrated hand edit
