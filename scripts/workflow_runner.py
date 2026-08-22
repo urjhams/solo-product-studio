@@ -343,7 +343,8 @@ def _normalize(state: dict[str, Any]) -> dict[str, Any]:
             # so a project that *finished* design still reads `current_phase: design`.
             # A cleared design phase means a Design Contract exists, which is the same
             # "has built something" this boundary exists to protect.
-            design_cleared = phases.get("design", {}).get("status") == "checkpointed"
+            design = phases.get("design")
+            design_cleared = isinstance(design, dict) and design.get("status") == "checkpointed"
             if session.get("current_phase") in ("define", "design") and not design_cleared:
                 session.update({"status": "in_progress", "current_phase": "define",
                                 "current_gate": "define-done-bar", "next_action": "begin-define",

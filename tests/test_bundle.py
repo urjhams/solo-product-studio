@@ -549,6 +549,7 @@ class BundleTests(unittest.TestCase):
         """Hand-edited hybrids are the whole premise of this branch of _normalize."""
         state = new_state("demo", "indie")
         state["phases"]["define"] = "checkpointed"
+        state["phases"]["design"] = "checkpointed"
         state["phases"]["product"] = {"status": "checkpointed", "done_bar": ["wedge narrow"], "result": None}
         state = _normalize(state)
         self.assertEqual(state["phases"]["define"]["done_bar"], ["wedge narrow"])
