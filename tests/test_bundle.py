@@ -521,6 +521,38 @@ class BundleTests(unittest.TestCase):
             state = _normalize(state)
             self.assertEqual(state["phases"]["define"]["done_bar"], seeded)
 
+    def test_a_cleared_design_phase_is_past_the_rewind_boundary(self):
+        """`checkpoint` does not advance `current_phase`, so a project that *finished*
+        design still reads `current_phase: design`. It has a Design Contract — the same
+        "has built something" the boundary protects one phase deeper."""
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["phases"]["design"] = {"status": "checkpointed", "done_bar": [], "result": None}
+        legacy["session"].update({"current_phase": "design", "current_gate": "specify-done-bar",
+                                  "next_action": "begin-specify", "status": "checkpointed",
+                                  "approval_status": "approved",
+                                  "last_checkpoint": {"phase": "design", "at": "2026-01-01T00:00:00+00:00"}})
+        state = _normalize(legacy)
+        self.assertEqual(state["session"]["next_action"], "begin-specify")
+        self.assertEqual(state["session"]["approval_status"], "approved")
+        self.assertEqual(state["session"]["last_checkpoint"]["phase"], "design",
+                         "design genuinely cleared, and `design` is still in PHASES")
+        self.assertEqual(state["phases"]["define"]["status"], "in_progress")
+
+    def test_the_rewind_still_fires_while_design_is_only_underway(self):
+        legacy = self._legacy_state(product_status="checkpointed", research_status="checkpointed")
+        legacy["phases"]["design"] = {"status": "in_progress", "done_bar": [], "result": None}
+        legacy["session"].update({"current_phase": "design", "next_action": "run-phase"})
+        state = _normalize(legacy)
+        self.assertEqual(state["session"]["next_action"], "begin-define")
+
+    def test_normalize_survives_a_define_phase_that_is_not_a_dict(self):
+        """Hand-edited hybrids are the whole premise of this branch of _normalize."""
+        state = new_state("demo", "indie")
+        state["phases"]["define"] = "checkpointed"
+        state["phases"]["product"] = {"status": "checkpointed", "done_bar": ["wedge narrow"], "result": None}
+        state = _normalize(state)
+        self.assertEqual(state["phases"]["define"]["done_bar"], ["wedge narrow"])
+
     def test_normalize_repairs_a_session_whose_phases_are_already_migrated(self):
         """Scoping the rename to the legacy guard would leave a half-migrated hand edit
         holding a phase name that is not in PHASES. SKILL.md tells the agent to write

@@ -321,12 +321,14 @@ def _normalize(state: dict[str, Any]) -> dict[str, Any]:
     legacy = [item for item in (phases.pop("product", None), phases.pop("research", None)) if item]
     # A stub `define` is not a real one — folding around it would drop the legacy
     # phase's done bar and result on a hand-edited hybrid file.
-    if legacy and phases.get("define", {}).get("status") in (None, "pending"):
+    existing_define = phases.get("define")
+    if not isinstance(existing_define, dict):
+        existing_define = {}
+    if legacy and existing_define.get("status") in (None, "pending"):
         # Take the legacy entry's progress, not its done bar: the surviving legacy bar
         # is the old `research` one, and a seeded `define` already carries the six-slot
         # bar that replaced it.
-        existing = phases.get("define") or {}
-        folded = {**dict(legacy[-1]), "done_bar": existing.get("done_bar") or legacy[-1].get("done_bar", [])}
+        folded = {**dict(legacy[-1]), "done_bar": existing_define.get("done_bar") or legacy[-1].get("done_bar", [])}
         if folded.get("status") == "checkpointed":
             # A legacy project never inherits a cleared checkpoint: the define gate has
             # not run against it, and grandfathering it past would mean the six slots are
@@ -337,12 +339,17 @@ def _normalize(state: dict[str, Any]) -> dict[str, Any]:
             # resume pointer back to define would discard real progress and, for a
             # finished project, un-approve a session whose brief is still handoff-able.
             # Leaving the phase `in_progress` keeps the gap visible either way.
-            if session.get("current_phase") in ("define", "design"):
+            # `checkpoint` does not advance `current_phase` — only `begin_phase` does —
+            # so a project that *finished* design still reads `current_phase: design`.
+            # A cleared design phase means a Design Contract exists, which is the same
+            # "has built something" this boundary exists to protect.
+            design_cleared = phases.get("design", {}).get("status") == "checkpointed"
+            if session.get("current_phase") in ("define", "design") and not design_cleared:
                 session.update({"status": "in_progress", "current_phase": "define",
                                 "current_gate": "define-done-bar", "next_action": "begin-define",
                                 "approval_status": "pending"})
-                # The folded phase did not clear, so nothing may claim it did — and the
-                # phase that genuinely cleared no longer exists under that name.
+                # The folded phase did not clear, so nothing may claim it did. Nothing
+                # later did either — the rewind only fires before design clears.
                 session["last_checkpoint"] = None
         phases["define"] = folded
     if legacy:
