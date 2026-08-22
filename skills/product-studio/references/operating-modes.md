@@ -2,10 +2,10 @@
 
 | Mode | Optimize for | Typical path | MVP emphasis |
 |---|---|---|---|
-| Prototype | Time to a clickable idea | Idea → quick validate → design → mock-first prototype | Smallest scope that carries the idea, mock everything, minimum tests, throwaway-friendly |
-| Hackathon | Demo clarity and wow moment | Idea → hero moment → complete core flow → demo | Fast, impressive, mock-first, fastest toolchain to a running demo |
-| Indie App | Paid wedge and maintainability | Pain → paid wedge → focused MVP → payment/retention | One-person operation and margin |
-| SaaS | Workflow ROI and repeat usage | Buyer/user → workflow → MVP → onboarding/billing | Core workflow before platform breadth |
+| Prototype | Time to a clickable idea | Idea → quick validate → define (4 slots) → design (magic moment + onboarding) → mock-first prototype | Smallest scope that carries the idea, mock everything, minimum tests, throwaway-friendly |
+| Hackathon | Demo clarity and wow moment | Idea → outcome + mechanism → magic moment → complete core flow → demo | Fast, impressive, mock-first, fastest toolchain to a running demo |
+| Indie App | Paid wedge and maintainability | Define (all six, pricing carries a number) → design → focused MVP → payment/retention | One-person operation and margin |
+| SaaS | Workflow ROI and repeat usage | Define (buyer vs user in the customer slot) → design → MVP → onboarding/billing | Core workflow before platform breadth |
 | Startup | Retention, distribution, and moat | Beachhead → MVP → retention → distribution → scale | Learning velocity and expansion evidence |
 | Production | Reliability and validated value | Updated definition → blueprint → migration → release | Security, observability, testability |
 

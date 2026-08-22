@@ -10,7 +10,11 @@ from typing import Any
 
 import workflow_profile
 
-PHASES = ("intake", "product", "research", "design", "specify", "mvp", "review", "production", "final_planning")
+PHASES = ("intake", "define", "design", "specify", "mvp", "review", "production", "final_planning")
+# The six slots a product definition is made of. `product` and `research` used to be two
+# phases and two checkpoints, which put the evidence after the definition was already
+# written. They are one phase now, and these are what it has to answer.
+DEFINE_SLOTS = ("customer", "pain", "outcome", "mechanism", "pricing", "proof")
 VERIFICATION_PASS = {"passed", "not_applicable"}
 CHECK_STATUSES = {"passed", "unresolved", "blocked", "not_applicable"}
 CHECK_OWNERS = {"implementation", "reviewer", "user"}
@@ -39,7 +43,10 @@ def new_state(project_id: str = "product", mode: str = "custom", *, name: str = 
         "reviews": [],
         "specify": {"behavior_spec": "", "mirror": "", "behaviors": 0, "open_ambiguities": 0, "validated": False},
         "final_planning": {"status": "pending", "source_artifacts": [], "implementation_brief": "", "context_sources": [], "constraints": [], "verification": {"do_not_finish_until": [], "evidence": [], "unresolved": []}, "output_format": {}, "reviewer": "", "review_iterations": 0, "approval_status": "pending", "source_fingerprint": ""},
-        "capabilities": {}, "product": {}, "business": {}, "constraints": {}, "research": {}, "assumptions": [], "decisions": [], "design": {}, "mvp": {}, "production": {}, "github": {},
+        "define": {"slots": {slot: "" for slot in DEFINE_SLOTS}, "research": {}},
+        "capabilities": {}, "business": {}, "constraints": {}, "assumptions": [], "decisions": [],
+        "design": {"prompt": "", "canvas_provider": "", "canvas_url": ""},
+        "mvp": {}, "production": {}, "github": {},
     }
 
 
@@ -181,6 +188,11 @@ def checkpoint(state: dict[str, Any], phase: str) -> dict[str, Any]:
     any_pass = any(review["passed"] for review in phase_reviews)
     profile = workflow_profile.load(state)
     spec_blocks = profile["planning"]["spec_gate"] == "block"
+    if phase == "define" and profile["define"]["gate"] == "required":
+        slots = state.get("define", {}).get("slots", {})
+        missing = [slot for slot in DEFINE_SLOTS if not slots.get(slot)]
+        if missing:
+            return _block(state, phase, f"define-slot-missing:{','.join(missing)}")
     if phase == "design" and profile["design"]["gate"] == "evidence_required" and not state["design"].get("evidence"):
         return _block(state, phase, "design-evidence-missing")
     if phase == "specify":
@@ -280,7 +292,30 @@ def deploy(state: dict[str, Any], target: str, *, environment: str = "", approve
 
 
 def load(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text())
+    return _normalize(json.loads(path.read_text()))
+
+
+def _normalize(state: dict[str, Any]) -> dict[str, Any]:
+    """Fold a pre-`define` state file forward so an in-flight project survives the rename.
+
+    ponytail: delete once no `.product-studio/project.json` predates the define phase.
+    """
+    phases = state.get("phases", {})
+    legacy = [phases.pop(name, None) for name in ("product", "research")]
+    if any(item is not None for item in legacy):
+        checkpointed = [item for item in legacy if item]
+        phases["define"] = checkpointed[-1] if checkpointed else {"status": "pending", "done_bar": [], "result": None}
+        state["phases"] = {phase: phases.get(phase, {"status": "pending", "done_bar": [], "result": None}) for phase in PHASES}
+    define = state.setdefault("define", {})
+    define.setdefault("slots", {slot: "" for slot in DEFINE_SLOTS})
+    define.setdefault("research", state.pop("research", {}) or {})
+    state.pop("product", None)
+    session = state.get("session", {})
+    for key in ("current_phase", "next_action", "current_gate"):
+        value = session.get(key)
+        if isinstance(value, str):
+            session[key] = value.replace("research", "define").replace("product", "define")
+    return state
 
 
 def save(path: Path, state: dict[str, Any]) -> None:

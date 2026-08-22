@@ -43,7 +43,38 @@ The default interaction policy is now phase-oriented: after you confirm the goal
 
 Questions use numbered choices for categorical decisions and always allow a custom answer.
 
+## Idea → Define → Design → Build
+
+Four pillars, and the session says which one it is in. **Idea** is intake plus the mandatory
+sense-check. **Define** fills six slots in order — customer, pain, outcome, **mechanism**, pricing,
+proof — asking one question per slot with a guess attached and running a bounded, cited research pass
+on the slots that need one. A slot is filled when it has an answer, a confidence number, and either a
+citation or an `A-###` saying it has none; wherever the compiled profile sets `define.gate: required`
+the checkpoint blocks with `define-slot-missing:<slots>` until they all are.
+
+Mechanism is the slot most products are missing. Customer, pain, and outcome describe a wish;
+mechanism is the sentence saying why the wish comes true, and it has to be specific, causal, and
+falsifiable:
+
+```text
+Weak:   "AI-powered insights help teams move faster."
+Filled: "We read the team's merged PRs nightly and post one message naming the
+         review that blocked longest, so the bottleneck is named before standup
+         instead of argued about after it."
+```
+
+**Design** turns those six into a magic moment (reachable from a cold start, attributable to the
+product), an onboarding path, landing-page or App Store copy whose every line traces back to a Define
+slot, and a design system. It always writes a Design Prompt to
+`.product-studio/artifacts/design-prompt.md` — self-contained enough to paste into Claude desktop
+cold — and, where the host has a `/design` canvas skill, publishes a canvas the user can open and
+keep adjusting. A canvas the user has actually responded to counts as the design evidence the
+high-risk gate asks for. **Build** is everything from Specify on.
+
 ## Discover → Specify → Red → Green → Refactor
+
+Underneath the pillars, the runner phases are `intake`, `define`, `design`, `specify`, `mvp`,
+`review`, `production`, `final_planning`.
 
 Test-driven development only helps if the tests encode the right idea. A suite written over a misread requirement is green and proves nothing, so there is a phase between the design work and the build plan whose whole job is catching the misreading.
 
@@ -101,7 +132,7 @@ What no mode relaxes is the safety floor: secrets out of the repository, no prod
 The skill may recommend different paths:
 
 ```text
-Rough idea → Product Lens → Evidence Scout → UX Contract → Spec Cartographer → MVP Forge
+Rough idea → Define (six slots) → Design (contract + prompt + canvas) → Spec Cartographer → MVP Forge
 Existing MVP → MVP Auditor → Product Synthesizer → Production Blueprint
 SaaS idea → Buyer/user QA → workflow validation → SaaS MVP → production planning
 Hackathon idea → hero moment → complete core flow → demo-ready MVP
@@ -204,7 +235,7 @@ When the user approves a workflow, the skill stores state in the active reposito
 └── github/
 ```
 
-State contains the selected mode, the **compiled workflow profile**, stage, constraints, capabilities, assumptions, decisions, approvals, and next gate. `scripts/workflow_runner.py` is its only writer, so the file the deterministic runner operates on and the file the skill calls canonical are the same file. Artifacts are Markdown and include Product Opportunity Brief, Evidence Pack, Design Contract, Behavior Spec, MVP Build Plan, MVP Review Report, Updated Product Definition, Production Build Blueprint, GitHub Delivery Plan, the final Implementation Brief, and any Re-evaluation Verdict.
+State contains the selected mode, the **compiled workflow profile**, stage, constraints, capabilities, assumptions, decisions, approvals, and next gate. `scripts/workflow_runner.py` is its only writer, so the file the deterministic runner operates on and the file the skill calls canonical are the same file. Artifacts are Markdown and include Product Opportunity Brief (the six Define slots), Evidence Pack, Design Contract, Design Prompt, Behavior Spec, MVP Build Plan, MVP Review Report, Updated Product Definition, Production Build Blueprint, GitHub Delivery Plan, the final Implementation Brief, and any Re-evaluation Verdict.
 
 The Behavior Spec is the one artifact that also lives outside `.product-studio/`. It is mirrored byte-for-byte to `docs/agent/BEHAVIORS.md` so it is tracked in git beside the code, and so an implementing agent, a reviewer, or CI can read it without knowing this skill exists. `scripts/validate_behavior_spec.py <canonical> --mirror docs/agent/BEHAVIORS.md` keeps the two honest.
 
@@ -224,6 +255,7 @@ Resume by invoking `product-studio` again. It reads the state, summarizes comple
 
 - Web research: cite sources when available; otherwise produce assumptions and a research plan.
 - Mobbin: optional; otherwise use the bundled UX pattern library and platform guidance.
+- Design canvas: the host's `/design` canvas skill publishes an Artifact the user can edit. Without one, the Design Prompt at `.product-studio/artifacts/design-prompt.md` is written anyway and is the user's to run elsewhere; the provider that actually ran is recorded, and one that did not is never claimed.
 - XcodeBuildMCP: preferred on any native Apple track (SwiftUI/UIKit) so builds, tests, simulator runs, and screenshots are real verification instead of instructions. If it is not installed, Product Studio offers to have you install it once, then continues either with `xcodebuild` shell commands or with manual Xcode steps recorded as unresolved checks.
 - GitHub connector or `gh`: inspect existing issues and publish only after approval.
 - No GitHub access: export local YAML and Markdown issue plans.

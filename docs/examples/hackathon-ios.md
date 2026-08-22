@@ -12,13 +12,40 @@ The confirmed answers compile to this, and every gate downstream reads it rather
   "mode": "hackathon",
   "risk_tier": "low",
   "delivery_target": "local_demo",
-  "planning": {"spec_gate": "warn", "max_behaviors": 9},
-  "design": {"gate": "advisory"},
-  "development": {"slicing": "flow", "refactor_phase": false, "pull_request_required": false, "merge_policy": "ask"},
-  "testing": {"automated_required": "smoke", "manual_required": true, "coverage_target": null, "ci_required": false},
-  "review": {"independent_required": false, "lane": "none"},
-  "deployment": {"allowed": false},
-  "safety_floor": ["demo-data-labeled-as-fake", "input-validation-on-demo-path", "secrets-out-of-repo"],
+  "planning": {
+    "spec_gate": "warn",
+    "max_behaviors": 9
+  },
+  "define": {
+    "gate": "advisory"
+  },
+  "design": {
+    "gate": "advisory"
+  },
+  "development": {
+    "merge_policy": "ask",
+    "slicing": "flow",
+    "refactor_phase": false,
+    "pull_request_required": false
+  },
+  "testing": {
+    "automated_required": "smoke",
+    "manual_required": true,
+    "coverage_target": null,
+    "ci_required": false
+  },
+  "review": {
+    "lane": "none",
+    "independent_required": false
+  },
+  "deployment": {
+    "allowed": false
+  },
+  "safety_floor": [
+    "demo-data-labeled-as-fake",
+    "input-validation-on-demo-path",
+    "secrets-out-of-repo"
+  ],
   "revisit_when": "the event is over"
 }
 ```

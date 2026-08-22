@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
 sys.path.insert(0, str(ROOT / "scripts"))
-from workflow_runner import attach_behavior_spec, attach_final_brief, begin_phase, can_finish, can_handoff, checkpoint, deploy, mark_implementation_done, new_state, record_answer, record_review, save  # noqa: E402
+from workflow_runner import DEFINE_SLOTS, attach_behavior_spec, attach_final_brief, begin_phase, can_finish, can_handoff, checkpoint, deploy, mark_implementation_done, load, new_state, record_answer, record_review, save  # noqa: E402
 import workflow_profile  # noqa: E402
 from validate_behavior_spec import validate as validate_spec  # noqa: E402
 from validate_implementation_brief import validate as validate_brief  # noqa: E402
@@ -230,7 +230,25 @@ class BundleTests(unittest.TestCase):
     def test_product_opportunity_template_has_validation_section(self):
         template = (ROOT / "templates/product-opportunity.md").read_text()
         self.assertIn("## Validation", template)
-        self.assertLess(template.index("## Validation"), template.index("## Summary"))
+        self.assertLess(template.index("## Validation"), template.index("## Define"))
+
+    def test_define_template_carries_every_slot_in_order(self):
+        """The brief is what the define loop writes down. A missing heading is a slot
+        nobody is asked about, which is exactly how mechanism went missing before."""
+        template = (ROOT / "templates/product-opportunity.md").read_text()
+        headings = ["### Customer", "### Pain", "### Outcome", "### Mechanism", "### Pricing", "### Proof"]
+        for heading in headings:
+            self.assertIn(heading, template)
+        positions = [template.index(heading) for heading in headings]
+        self.assertEqual(positions, sorted(positions), "define slots must appear in slot order")
+
+    def test_design_contract_covers_the_four_design_slots(self):
+        contract = (ROOT / "templates/design-contract.md").read_text()
+        for heading in ("## Promise and magic moment", "## Onboarding path",
+                        "## Landing / store listing", "## Design system"):
+            self.assertIn(heading, contract)
+        self.assertIn("hero moment", contract, "the Hackathon done bar still says hero moment")
+        self.assertIn("design-prompt.md", contract)
 
     def test_fluid_workflow_rules_are_explicit(self):
         skill = (ROOT / "skills/product-studio/SKILL.md").read_text()
@@ -325,15 +343,70 @@ class BundleTests(unittest.TestCase):
 
     def test_workflow_runner_requires_independent_review(self):
         state = new_state("demo")
-        begin_phase(state, "product", ["wedge defined"])
-        record_review(state, "product", "self", True, ["looks good"])
-        checkpoint(state, "product")
+        state["define"]["slots"] = {slot: "answered" for slot in DEFINE_SLOTS}
+        begin_phase(state, "define", ["wedge defined"])
+        record_review(state, "define", "self", True, ["looks good"])
+        checkpoint(state, "define")
         self.assertEqual(state["session"]["approval_status"], "self_review_only")
-        self.assertEqual(state["phases"]["product"]["status"], "blocked")
-        record_review(state, "product", "independent", True, [])
-        checkpoint(state, "product")
+        self.assertEqual(state["phases"]["define"]["status"], "blocked")
+        record_review(state, "define", "independent", True, [])
+        checkpoint(state, "define")
         self.assertEqual(state["session"]["approval_status"], "approved")
-        self.assertEqual(state["phases"]["product"]["status"], "checkpointed")
+        self.assertEqual(state["phases"]["define"]["status"], "checkpointed")
+
+    def test_define_slots_block_the_checkpoint_until_every_one_is_filled(self):
+        """Mechanism, pricing, and proof used to be prose nothing read. This is the
+        mechanism that makes the six slots a gate instead of a heading."""
+        state = new_state("demo", "indie")
+        begin_phase(state, "define")
+        record_review(state, "define", "independent", True, [])
+        state["define"]["slots"]["mechanism"] = ""
+        for slot in DEFINE_SLOTS:
+            if slot != "mechanism":
+                state["define"]["slots"][slot] = "answered"
+        checkpoint(state, "define")
+        self.assertEqual(state["phases"]["define"]["status"], "blocked")
+        self.assertEqual(state["session"]["next_action"], "define-slot-missing:mechanism")
+
+        state["define"]["slots"]["mechanism"] = "nightly PR scan posts the longest-blocking review"
+        checkpoint(state, "define")
+        self.assertEqual(state["phases"]["define"]["status"], "checkpointed")
+        self.assertEqual(state["session"]["next_action"], "begin-design")
+
+    def test_a_fast_mode_is_not_asked_to_price_itself(self):
+        for mode in ("prototype", "hackathon"):
+            with self.subTest(mode=mode):
+                state = new_state("demo", mode)
+                begin_phase(state, "define")
+                record_review(state, "define", "self", True, [])
+                checkpoint(state, "define")
+                self.assertEqual(state["phases"]["define"]["status"], "checkpointed")
+        for mode in ("indie", "saas", "startup", "production", "custom"):
+            with self.subTest(mode=mode):
+                self.assertEqual(workflow_profile.compile_profile(mode)["define"]["gate"], "required")
+
+    def test_a_pre_define_state_file_still_loads(self):
+        """An in-flight project predates the rename. Reading it must not KeyError."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "project.json"
+            legacy = new_state("demo", "indie")
+            legacy["phases"]["product"] = {"status": "checkpointed", "done_bar": ["wedge narrow"], "result": None}
+            legacy["phases"]["research"] = {"status": "pending", "done_bar": [], "result": None}
+            del legacy["phases"]["define"]
+            legacy["product"] = {"target_user": "solo founders"}
+            legacy["research"] = {"sources": ["https://example.com"]}
+            del legacy["define"]
+            legacy["session"]["current_phase"] = "research"
+            legacy["session"]["next_action"] = "begin-research"
+            save(path, legacy)
+
+            state = load(path)
+            self.assertIn("define", state["phases"])
+            self.assertNotIn("product", state["phases"])
+            self.assertEqual(state["session"]["current_phase"], "define")
+            self.assertEqual(state["define"]["research"], {"sources": ["https://example.com"]})
+            self.assertEqual(sorted(state["define"]["slots"]), sorted(DEFINE_SLOTS))
+            checkpoint(state, "define")  # the gate runs; it must not raise
 
     def test_prototype_mode_rules_are_explicit(self):
         prototype = (ROOT / "skills/product-studio/references/prototype-mode.md").read_text()
@@ -362,13 +435,14 @@ class BundleTests(unittest.TestCase):
 
     def test_workflow_runner_repair_iteration_and_next_phase(self):
         state = new_state("demo")
-        begin_phase(state, "product")
-        record_review(state, "product", "independent", False, ["wedge too broad"])
+        state["define"]["slots"] = {slot: "answered" for slot in DEFINE_SLOTS}
+        begin_phase(state, "define")
+        record_review(state, "define", "independent", False, ["wedge too broad"])
         self.assertEqual(state["session"]["iteration_count"], 1)
         self.assertEqual(state["session"]["next_action"], "repair-highest-impact-gap")
-        record_review(state, "product", "independent", True, [])
-        checkpoint(state, "product")
-        self.assertEqual(state["session"]["next_action"], "begin-research")
+        record_review(state, "define", "independent", True, [])
+        checkpoint(state, "define")
+        self.assertEqual(state["session"]["next_action"], "begin-design")
 
     def test_final_planning_checkpoint_blocks_a_missing_or_malformed_brief(self):
         state = new_state("demo")
@@ -483,7 +557,7 @@ class BundleTests(unittest.TestCase):
     def test_workbench_detection_and_local_fallback(self):
         self.assertEqual(detect()["status"], "unavailable")
         with tempfile.TemporaryDirectory() as directory:
-            target = publish_local(Path(directory), {"phase": "product"})
+            target = publish_local(Path(directory), {"phase": "define"})
             self.assertTrue(target.exists())
             self.assertIn("local_fallback", target.read_text())
 
@@ -844,6 +918,7 @@ class ProfileScenarioTests(unittest.TestCase):
             with self.subTest(mode=mode):
                 self.assertIn(compiled["risk_tier"], profile_schema["properties"]["risk_tier"]["enum"])
                 self.assertIn(compiled["delivery_target"], profile_schema["properties"]["delivery_target"]["enum"])
+                self.assertIn(compiled["define"]["gate"], profile_schema["properties"]["define"]["properties"]["gate"]["enum"])
                 self.assertIn(compiled["design"]["gate"], profile_schema["properties"]["design"]["properties"]["gate"]["enum"])
                 self.assertIn(compiled["development"]["merge_policy"], profile_schema["properties"]["development"]["properties"]["merge_policy"]["enum"])
                 self.assertIn(compiled["review"]["lane"], profile_schema["properties"]["review"]["properties"]["lane"]["enum"])
@@ -896,20 +971,21 @@ class ProfileScenarioTests(unittest.TestCase):
             path = Path(directory) / ".product-studio" / "project.json"
             state = json.loads(path.read_text())
             record_answer(state, "who is this for?", "solo founders", decision_id="D-001")
-            begin_phase(state, "product")
-            record_review(state, "product", "independent", True, [])
-            checkpoint(state, "product")
+            begin_phase(state, "define")
+            record_review(state, "define", "independent", True, [])
+            state["define"]["slots"] = {slot: "answered" for slot in DEFINE_SLOTS}
+            checkpoint(state, "define")
             save(path, state)
 
             resumed = json.loads(path.read_text())
             self.assertEqual(resumed["project"]["mode"], "indie")
             self.assertEqual(resumed["workflow_profile"], workflow_profile.compile_profile("indie"))
             self.assertEqual(resumed["session"]["questions"][0]["decision_id"], "D-001")
-            self.assertEqual(resumed["session"]["last_checkpoint"]["phase"], "product")
-            self.assertEqual(resumed["session"]["next_action"], "begin-research")
+            self.assertEqual(resumed["session"]["last_checkpoint"]["phase"], "define")
+            self.assertEqual(resumed["session"]["next_action"], "begin-design")
             # and the runner can still act on the file it just wrote
-            checkpoint(resumed, "product")
-            self.assertEqual(resumed["phases"]["product"]["status"], "checkpointed")
+            checkpoint(resumed, "define")
+            self.assertEqual(resumed["phases"]["define"]["status"], "checkpointed")
 
     def test_brief_validator_rejects_a_deployment_the_profile_forbids(self):
         brief = (ROOT / "templates/implementation-brief.md").read_text()

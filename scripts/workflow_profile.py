@@ -25,6 +25,7 @@ RISK_TIERS = ("low", "moderate", "high")
 DELIVERY_TARGETS = ("local_demo", "code_only", "pull_request", "preview", "staging", "production")
 SPEC_GATES = ("warn", "block")
 DESIGN_GATES = ("advisory", "required", "evidence_required")
+DEFINE_GATES = ("advisory", "required")
 AUTOMATED_TESTS = ("smoke", "core", "full")
 SLICING = ("flow", "vertical")
 MERGE_POLICIES = ("never", "ask", "auto_on_approve")
@@ -55,6 +56,10 @@ def _profile(
         "risk_tier": risk_tier,
         "delivery_target": delivery_target,
         "planning": {"spec_gate": spec_gate, "max_behaviors": max_behaviors},
+        # A demo is not asked to price itself or cite its evidence, so the low tier
+        # relaxes the six define slots to advisory. Every durable mode has to fill
+        # all six. Override `define.gate` explicitly to change it.
+        "define": {"gate": "advisory" if risk_tier == "low" else "required"},
         "design": {"gate": design_gate},
         "development": {"slicing": slicing, "refactor_phase": refactor_phase, "pull_request_required": pull_request_required},
         "testing": {"automated_required": automated_required, "manual_required": True, "coverage_target": coverage_target, "ci_required": ci_required},
