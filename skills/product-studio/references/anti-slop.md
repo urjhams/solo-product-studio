@@ -42,7 +42,7 @@ years is asked for it on day one, when it costs nothing, rather than as a rescue
 ## Ratchet, not baseline
 
 Record existing violations per rule in a committed file. A count may fall, never rise; a fall must be
-recorded so it cannot come back. This works with any linter, needs no baseline feature, and a stale
+recorded so it cannot come back. This works with any linter, whether or not it has a baseline feature, and a stale
 entry fails loudly. Ceiling: moving a violation to another file keeps the count, so review still reads
 the diff. Greenfield projects start with an empty ratchet, which means zero tolerance. An existing repo
 records its debt once with `scripts/check.sh --baseline` (the only command allowed to raise a count) and

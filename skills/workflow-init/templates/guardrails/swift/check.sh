@@ -20,7 +20,7 @@ esac
 
 cap_failed=0
 if [ -z "$mode" ] && [ -f AGENTS.md ]; then
-  lines=$(wc -l < AGENTS.md | tr -d ' ')
+  lines=$(awk 'END { print NR }' AGENTS.md)
   if [ "$lines" -gt 100 ]; then
     echo "check: AGENTS.md has $lines lines, the cap is 100; move detail to docs/agent/RUNBOOKS.md" >&2
     cap_failed=1
@@ -42,7 +42,7 @@ if ! [ -s "$report" ]; then
   exit 1
 fi
 
-python3 -I - "$report" "$mode" <<'PY'
+CAP_FAILED=$cap_failed python3 -I - "$report" "$mode" <<'PY'
 import collections, json, os, sys
 RATCHET = ".swiftlint.ratchet"
 violations = json.load(open(sys.argv[1]))
@@ -75,7 +75,8 @@ for r in fell:
     print(f"check: {r} fell {allowed[r]} -> {now[r]}; run scripts/check.sh --update", file=sys.stderr)
 if rose or fell:
     sys.exit(1)
-print(f"check: pass ({sum(now.values())} known violations, none new)")
+verdict = "lint ok" if os.environ.get("CAP_FAILED") == "1" else "pass"
+print(f"check: {verdict} ({sum(now.values())} known violations, none new)")
 PY
 lint_status=$?
 [ "$lint_status" -eq 0 ] && [ "$cap_failed" -eq 0 ]

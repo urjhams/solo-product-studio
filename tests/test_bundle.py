@@ -1002,6 +1002,14 @@ class SwiftCheckScriptTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("AGENTS.md has 101 lines", result.stderr)
         self.assertIn("docs/agent/RUNBOOKS.md", result.stderr)
+        self.assertNotIn("check: pass", result.stdout, "a failing cap must not also print the pass line")
+
+    def test_the_cap_counts_a_last_line_with_no_trailing_newline(self):
+        directory = self.project()
+        (directory / "AGENTS.md").write_text("line\n" * 100 + "last line, no newline")
+        result = self.check(directory)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("AGENTS.md has 101 lines", result.stderr)
 
 
 if __name__ == "__main__":
