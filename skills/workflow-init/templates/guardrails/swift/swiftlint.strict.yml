@@ -1,0 +1,93 @@
+# Strict guardrails: the standard hazard bans plus size and complexity limits tight enough that
+# growth forces a split. Application sources only: tests are out on purpose. Violation counts per
+# rule are ratcheted by scripts/check.sh (.swiftlint.ratchet): they may fall, never rise, and a new
+# project starts at zero. Add a custom rule below for every mistake this project makes twice.
+excluded:
+  - Pods
+  - Carthage
+  - .build
+  - DerivedData
+  - "**/*Tests"
+
+disabled_rules:
+  - trailing_whitespace
+  - line_length
+  - identifier_name
+  - type_name
+  - todo
+  - nesting
+  - large_tuple
+  - opening_brace
+  - trailing_comma
+  - vertical_whitespace
+  - colon
+  - comma
+  - statement_position
+  - control_statement
+  - closing_brace
+  - void_return
+  - unused_closure_parameter
+  - redundant_string_enum_value
+  - orphaned_doc_comment
+  - blanket_disable_command
+  - for_where
+  - redundant_optional_initialization
+  - multiple_closures_with_trailing_closure
+  - redundant_discardable_let
+  - unneeded_synthesized_initializer
+  - void_function_in_ternary
+
+opt_in_rules:
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - fatal_error_message
+  - unavailable_function
+
+file_length:
+  warning: 300
+  error: 500
+  ignore_comment_only_lines: true
+function_body_length:
+  warning: 40
+  error: 80
+type_body_length:
+  warning: 250
+  error: 400
+cyclomatic_complexity:
+  warning: 8
+  error: 12
+function_parameter_count:
+  warning: 5
+  error: 7
+
+custom_rules:
+  no_print:
+    name: "No print"
+    regex: '(?<![A-Za-z_.])print\('
+    message: "Use the project logger."
+    match_kinds: [identifier, typeidentifier, keyword, attribute.builtin, attribute.id]
+    severity: error
+  no_anyview:
+    name: "No AnyView"
+    regex: '\bAnyView\b'
+    message: "AnyView erases identity and defeats diffing; use a concrete view or @ViewBuilder."
+    match_kinds: [identifier, typeidentifier, keyword, attribute.builtin, attribute.id]
+    severity: error
+  no_unexplained_unchecked_sendable:
+    name: "@unchecked Sendable needs its reason on the same line"
+    regex: '@unchecked Sendable(?![^\n]*//)'
+    message: "Say why it is safe in a trailing // comment, or make the type properly Sendable."
+    match_kinds: [identifier, typeidentifier, keyword, attribute.builtin, attribute.id]
+    severity: error
+  no_banner_comment:
+    name: "No banner comments"
+    regex: '^\s*//\s*[-=*#_~]{3,}'
+    message: "Divider comments add nothing; structure belongs in types and files."
+    match_kinds: comment
+    severity: error
+  no_commented_out_code:
+    name: "No commented-out code"
+    regex: '^\s*//\s*((let|var)\s+\w+\s*[:=]|(func|if|guard|for|while|switch)\b[^\n]*\{\s*$|(return|try|await)\b[^\n]*;\s*$)'
+    message: "Delete it; version control remembers."
+    match_kinds: comment
+    severity: error

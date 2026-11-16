@@ -21,6 +21,9 @@ jobs:
       # {{STACK_SETUP}}
       - run: |
           {{LINT_CMD}}
+      # Present only when the guardrails module was scaffolded (profile: engineering.guardrails
+      # standard or strict). It fails on any lint violation the debt ratchet does not already hold.
+      - run: '[ ! -f scripts/check.sh ] || bash scripts/check.sh'
 
   typecheck:
     runs-on: ubuntu-latest

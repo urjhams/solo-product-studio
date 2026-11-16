@@ -60,6 +60,8 @@ one can be found.
   ambiguity is a question for the user, not a guess. Then write the tests failing, each naming the
   `BH-###` it proves, and implement until green.
 - **Explain every command before running it** — one plain-language line.
+- If `scripts/check.sh` exists, run it before saying done: its failures are the style and hazard rules, and
+  nothing in this file overrides them. Comments say *why*, never *what*.
 - {{PR_POLICY}}
   Gates + review flow: [`docs/agent/RUNBOOKS.md`](docs/agent/RUNBOOKS.md#pr-flow).
 - {{MERGE_POLICY_TEXT}}

@@ -98,6 +98,8 @@ Then, manually: run the full demo script end to end on the demo device at least 
 
 Not required: coverage target, broad unit suite, E2E suite, snapshots, CI, independent review, or a performance program — unless the judging rubric explicitly asks for one.
 
+Guardrails: none. `engineering.guardrails` compiles to `off`, so do not scaffold a linter, a ban list, a debt ratchet or an instruction-file size cap; none of it would be maintained past the event. The safety floor still holds. See `references/anti-slop.md`.
+
 ## Done bar
 
 - The hero moment lands on the target device from a cold start.

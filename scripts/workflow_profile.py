@@ -30,6 +30,7 @@ AUTOMATED_TESTS = ("smoke", "core", "full")
 SLICING = ("flow", "vertical")
 MERGE_POLICIES = ("never", "ask", "auto_on_approve")
 REVIEW_LANES = ("offline", "online", "none")
+GUARDRAIL_LEVELS = ("off", "standard", "strict")
 
 # A deploy needs somewhere to deploy to. Anything below these targets that claims
 # deployment.allowed is a mis-compiled profile, not a permissive one.
@@ -44,6 +45,12 @@ _TENANT_FLOOR = _PRODUCT_FLOOR + ("authz-per-tenant", "pii-encrypted-at-rest")
 _PRODUCTION_FLOOR = _TENANT_FLOOR + (
     "security-review", "observability", "rollout-plan", "rollback-plan", "human-approval-gate",
 )
+
+
+def guardrail_level(risk_tier: str) -> str:
+    """Lint, format and ban-list gates follow the risk tier: a demo is not asked for them, a
+    production system gets the strictest set. `engineering.guardrails` overrides it."""
+    return {"low": "off", "high": "strict"}.get(risk_tier, "standard")
 
 
 def _profile(
@@ -64,6 +71,7 @@ def _profile(
         "development": {"slicing": slicing, "refactor_phase": refactor_phase, "pull_request_required": pull_request_required},
         "testing": {"automated_required": automated_required, "manual_required": True, "coverage_target": coverage_target, "ci_required": ci_required},
         "review": {"independent_required": independent_required},
+        "engineering": {"guardrails": guardrail_level(risk_tier)},
         "deployment": {"allowed": False},
         "safety_floor": list(safety_floor),
         "revisit_when": revisit_when,
@@ -146,6 +154,7 @@ def compile_profile(mode: str, overrides: dict[str, Any] | None = None) -> dict[
         raise ValueError(f"unknown mode: {mode} (expected one of {', '.join(MODES)})")
     profile = _merge(MODE_PROFILES[mode], overrides or {})
     define_gate_was_set = "gate" in (overrides or {}).get("define", {})
+    guardrails_were_set = "guardrails" in (overrides or {}).get("engineering", {})
 
     # Merge policy and review lane are user answers rather than mode consequences,
     # so they default here instead of in the mode table: `ask` keeps a human on the
@@ -164,6 +173,10 @@ def compile_profile(mode: str, overrides: dict[str, Any] | None = None) -> dict[
     # still wins — it is the field's own switch.
     if not define_gate_was_set:
         profile["define"] = {**profile["define"], "gate": "advisory" if profile["risk_tier"] == "low" else "required"}
+
+    # Same rule for the guardrails: they follow the merged risk tier unless the field itself was set.
+    if not guardrails_were_set:
+        profile["engineering"] = {**profile["engineering"], "guardrails": guardrail_level(profile["risk_tier"])}
 
     if profile["risk_tier"] == "high":
         profile["design"] = {**profile["design"], "gate": "evidence_required"}
@@ -191,6 +204,10 @@ def compile_profile(mode: str, overrides: dict[str, Any] | None = None) -> dict[
         raise ValueError(f"invalid design.gate: {profile['design']['gate']}")
     if profile["development"]["merge_policy"] not in MERGE_POLICIES:
         raise ValueError(f"invalid development.merge_policy: {profile['development']['merge_policy']}")
+    if profile["engineering"]["guardrails"] not in GUARDRAIL_LEVELS:
+        raise ValueError(f"invalid engineering.guardrails: {profile['engineering']['guardrails']}")
+    if profile["risk_tier"] == "high" and profile["engineering"]["guardrails"] == "off":
+        raise ValueError("a high risk_tier cannot run with engineering.guardrails off: use standard or strict")
     if profile["review"]["lane"] not in REVIEW_LANES:
         raise ValueError(f"invalid review.lane: {profile['review']['lane']}")
     if profile["review"]["independent_required"] and profile["review"]["lane"] == "none":
@@ -212,6 +229,9 @@ def load(state: dict[str, Any]) -> dict[str, Any]:
         return compile_profile(state.get("project", {}).get("mode") or "custom")
     if profile.get("version") != VERSION:
         raise ValueError(f"unsupported workflow profile version: {profile.get('version')}")
+    # A profile compiled before `engineering` existed still answers, from its own risk tier.
+    if "engineering" not in profile:
+        profile = {**profile, "engineering": {"guardrails": guardrail_level(profile["risk_tier"])}}
     return profile
 
 

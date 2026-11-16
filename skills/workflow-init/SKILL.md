@@ -33,6 +33,7 @@ skill — that skill writes the same file, so a project using both gets one spec
    | `development.merge_policy` | the `{{MERGE_POLICY}}` and `{{MERGE_POLICY_TEXT}}` fills — `never`, `ask`, or `auto_on_approve` |
    | `development.pull_request_required` | the `{{PR_POLICY}}` fill, and whether `claude-code` (the verdict hook) is worth installing |
    | `planning.spec_gate` | CARD step 2 — `warn` makes the ambiguity rule advisory instead of blocking |
+   | `engineering.guardrails` | whether the `guardrails` module may run, and which lint config it installs: `off` (prototype, hackathon) refuses it and writes nothing; `standard` and `strict` install the stack lint config, an empty debt ratchet and `scripts/check.sh` |
    | `risk_tier` | whether `engineering` is included, and whether the security and observability checklists are optional |
    | `delivery_target` | CI triggers, and whether a release section belongs in the generated docs at all |
    | `safety_floor` and `revisit_when` | the `{{MODE_POLICY}}` fill |
@@ -66,6 +67,11 @@ skill — that skill writes the same file, so a project using both gets one spec
    - *Engineering depth*: `engineering` copies the reference set from the sibling
      `engineering-cycle` skill into `docs/engineering/` — the review axes, security, the build
      loop, planning, ADRs, observability, release, CI, shipping, migration, and the checklists.
+     Add `guardrails` (`--stack swift`) for any durable mode: lint config with hazard bans, a debt ratchet and
+     `scripts/check.sh`, which the full CI ladder runs. It follows `engineering.guardrails` in the profile and
+     refuses at `off`, so a hackathon never picks up a linter it will not maintain. Only Swift has a template
+     so far; any other stack gets `docs/agent/ANTI-SLOP.md` and wires its own linter. Keep the filled `AGENTS.md`
+     under 100 lines and name two golden reference files in it. Spec: product-studio `references/anti-slop.md`.
      Add `engineering-web` only when the project has a browser frontend; it is the one whole-file
      web-only reference and it is inert without the `chrome-devtools` MCP server. Decline both for
      a repo that only wants the memory bank and the gates.
