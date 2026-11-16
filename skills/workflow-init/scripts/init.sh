@@ -35,6 +35,7 @@ PS_CI_REQUIRED=0
 PS_GUARDRAILS=""
 STACK=""
 GUARDRAILS=""
+KEPT_SWIFTLINT=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -61,13 +62,19 @@ read_profile() {
   eval "$(python3 -c '
 import json, sys
 try:
-    profile = json.load(open(sys.argv[1])).get("workflow_profile") or {}
+    state = json.load(open(sys.argv[1]))
+    profile = state.get("workflow_profile") or {}
 except Exception:
-    profile = {}
-mode = profile.get("mode", "")
+    state, profile = {}, {}
+mode = profile.get("mode") or state.get("project", {}).get("mode") or ""
 print("PS_MODE=" + (mode if mode.isalnum() else ""))
 print("PS_CI_REQUIRED=" + str(int(bool(profile.get("testing", {}).get("ci_required")))))
-level = profile.get("engineering", {}).get("guardrails") or ({"low": "off", "high": "strict"}.get(profile.get("risk_tier"), "standard") if profile else "")
+# Keep in step with guardrail_level in scripts/workflow_profile.py (the same risk-tier rule) and with
+# load() there, which compiles the mode for state that has no profile.
+if profile:
+    level = profile.get("engineering", {}).get("guardrails") or {"low": "off", "high": "strict"}.get(profile.get("risk_tier"), "standard")
+else:
+    level = {"prototype": "off", "hackathon": "off", "production": "strict"}.get(mode, "standard")
 print("PS_GUARDRAILS=" + (level if level.isalpha() else ""))
 ' "$1" 2>/dev/null)"
 }
@@ -178,10 +185,10 @@ install() {
     if [ "$mod" = guardrails ]; then
       case "$(guardrail_level)" in
         standard|strict) ;;
-        off) echo "guardrails: the profile compiled engineering.guardrails to off${PS_MODE:+ (mode $PS_MODE)}; nothing is scaffolded." >&2
+        off) echo "guardrails: the profile compiled engineering.guardrails to off${PS_MODE:+ (mode $PS_MODE)}; no module was installed." >&2
              echo "  A prototype or hackathon carries no linter to maintain. To opt in anyway: --guardrails standard" >&2
              exit 1 ;;
-        *) echo "guardrails: unknown level '$(guardrail_level)' (expected off, standard or strict)" >&2; exit 1 ;;
+        *) echo "guardrails: unknown level '$(guardrail_level)' (expected off, standard or strict); no module was installed." >&2; exit 1 ;;
       esac
     fi
   done
@@ -216,7 +223,10 @@ install() {
         if [ "$FORCE" = 1 ] && grep -q "	$dst\$" "$DEST/$MANIFEST" && [ "$(sha "$to")" = "$(grep "	$dst\$" "$DEST/$MANIFEST" | awk '{print $1}')" ]; then
           : # unmodified generated file — regenerate below
         else
-          echo "skip (exists): $dst"; skipped=$((skipped+1)); continue
+          echo "skip (exists): $dst"; skipped=$((skipped+1))
+          # Only a file the scaffold did not write counts as the user's own lint config.
+          if [ "$dst" = .swiftlint.yml ] && ! grep -q "	$dst\$" "$DEST/$MANIFEST"; then KEPT_SWIFTLINT=1; fi
+          continue
         fi
       fi
       mkdir -p "$(dirname "$to")"
@@ -245,7 +255,13 @@ install() {
   case ",$MODULES," in *,guardrails,*)
     if [ -f "$DEST/scripts/check.sh" ]; then
       echo "  5. guardrails module ($(guardrail_level)): run scripts/check.sh once (needs the linter installed), name two golden"
-      echo "     reference files in AGENTS.md, and keep AGENTS.md under 100 lines."
+      echo "     reference files in AGENTS.md, and keep AGENTS.md under 100 lines (check.sh fails above that)."
+      echo "     A repo that already has violations: run scripts/check.sh --baseline once to record today's debt, then"
+      echo "     review the .swiftlint.ratchet diff. A new project keeps the empty ratchet: zero tolerance."
+      if [ "$KEPT_SWIFTLINT" = 1 ]; then
+        echo "     kept your .swiftlint.yml: merge the custom_rules from templates/guardrails/swift/swiftlint.$(guardrail_level).yml by hand;"
+        echo "     until you do, none of the ban rules are installed."
+      fi
     else
       echo "  5. guardrails module: no template for stack '${STACK:-unset}' yet; docs/agent/ANTI-SLOP.md is the spec. Wire the"
       echo "     stack's linter, a ban list and a scripts/check.sh by hand, then add the template after it has run on a real repo."

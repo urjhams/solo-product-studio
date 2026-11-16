@@ -231,7 +231,7 @@ def load(state: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"unsupported workflow profile version: {profile.get('version')}")
     # A profile compiled before `engineering` existed still answers, from its own risk tier.
     if "engineering" not in profile:
-        profile = {**profile, "engineering": {"guardrails": guardrail_level(profile["risk_tier"])}}
+        profile = {**profile, "engineering": {"guardrails": guardrail_level(profile.get("risk_tier", ""))}}
     return profile
 
 

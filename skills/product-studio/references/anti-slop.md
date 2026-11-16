@@ -13,7 +13,7 @@ The fix is to clean the input, replace prose with checks that fail, and make the
 | `engineering.guardrails` | Modes (default) | What the scaffold installs |
 |---|---|---|
 | `off` | prototype, hackathon | Nothing. No linter, no ban list, no size cap. `workflow-init --modules guardrails` refuses. The safety floor still holds. |
-| `standard` | indie, saas, startup, custom | Lint with hazard bans, an empty debt ratchet, an instruction-file cap of 100 lines, a golden-reference pointer, lint in the CI ladder. |
+| `standard` | indie, saas, startup, custom | Lint with hazard bans, an empty debt ratchet, an `AGENTS.md` cap of 100 lines that `scripts/check.sh` fails on, a golden-reference pointer, lint in the CI ladder (full CI workflow only; Swift needs a macOS runner). |
 | `strict` | production | Standard plus tighter size and complexity limits, property-based tests on pure logic, state-machine tests on critical flows, a command-query-separation reviewer axis. A high risk tier cannot run with guardrails off. |
 
 A demo is not asked to carry machinery it will never maintain. A product that will be maintained for
@@ -44,7 +44,9 @@ years is asked for it on day one, when it costs nothing, rather than as a rescue
 Record existing violations per rule in a committed file. A count may fall, never rise; a fall must be
 recorded so it cannot come back. This works with any linter, needs no baseline feature, and a stale
 entry fails loudly. Ceiling: moving a violation to another file keeps the count, so review still reads
-the diff. Greenfield projects start with an empty ratchet, which means zero tolerance.
+the diff. Greenfield projects start with an empty ratchet, which means zero tolerance. An existing repo
+records its debt once with `scripts/check.sh --baseline` (the only command allowed to raise a count) and
+reviews the ratchet diff; afterwards `--update` is tighten-only.
 
 ## Scaffolding
 

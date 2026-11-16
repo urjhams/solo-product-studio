@@ -66,7 +66,7 @@ Cumulative, and never cuttable. An override may add entries; nothing removes one
 | The agent may merge its own PR | `development.merge_policy` | **ci-enforced** — the generated verdict hook's `gh pr merge` gate, plus the deliberate absence of a `gh pr merge` allow entry |
 | Where the independent review runs | `review.lane` | **ci-enforced** on the online lane — the generated `claude-review.yml` runs and posts itself. Advisory on the offline lane: spawning the local reviewer is a RUNBOOKS instruction with no mechanism behind it |
 | `workflow-init --modules guardrails` refuses to scaffold | `engineering.guardrails: off` | **enforced** — `init.sh` exits non-zero |
-| Lint, hazard bans and the debt ratchet run in the CI ladder | `engineering.guardrails` ≥ `standard` | **ci-enforced** — generated `scripts/check.sh`, run by the full CI workflow |
+| Lint, hazard bans, the debt ratchet and the 100-line `AGENTS.md` cap | `engineering.guardrails` ≥ `standard` | **ci-enforced for Swift on the full CI workflow; advisory otherwise** — generated `scripts/check.sh` exists only for the Swift stack, the CI step exists only when `testing.ci_required` resolves the `ci` module to `ci-full.yml`, and the lint job needs a macOS runner with swiftlint installed. Run `scripts/check.sh` locally before "done" either way |
 | Golden reference files, property and state-machine tests, the command-query reviewer axis | `engineering.guardrails: strict` | advisory — prose in the generated instructions and `docs/agent/ANTI-SLOP.md` |
 | A refactor step follows green | `development.refactor_phase` | advisory |
 | Coverage target | `testing.coverage_target` | advisory |

@@ -9,9 +9,10 @@ copying today's mess into tomorrow's. Enforced by `scripts/check.sh`; this page 
   full CI workflow runs and which you run before saying "done".
 - **Debt ratchet:** violations that already existed are counted per rule in the ratchet file. A count may fall
   (record it with `scripts/check.sh --update`), never rise, and `--update` refuses to record a higher one. A new
-  project starts at zero.
-- **Instruction file under 100 lines:** `AGENTS.md` holds architecture, commands and core conventions. Detail
-  goes to `docs/agent/RUNBOOKS.md` with a one-line pointer. A rule that can be broken without a failing command
+  project starts at zero. A repo that already has violations records them once with `scripts/check.sh --baseline`,
+  the only command allowed to raise a count; review the ratchet diff before committing it.
+- **Instruction file under 100 lines:** `scripts/check.sh` fails when `AGENTS.md` is longer. It holds architecture,
+  commands and core conventions; detail goes to `docs/agent/RUNBOOKS.md` with a one-line pointer. A rule that can be broken without a failing command
   is a suggestion; turn it into a lint rule instead of a paragraph.
 
 ## Writing code here

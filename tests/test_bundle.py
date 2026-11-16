@@ -826,8 +826,56 @@ class GuardrailTests(unittest.TestCase):
         result, directory = self.scaffold("hackathon")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("engineering.guardrails to off", result.stderr)
-        self.assertFalse((directory / ".swiftlint.yml").exists())
-        self.assertFalse((directory / "scripts/check.sh").exists())
+        self.assertIn("no module was installed", result.stderr)
+        self.assertEqual(sorted(p.name for p in directory.iterdir()), [".product-studio"])
+
+    def test_a_refused_guardrails_module_takes_a_listed_core_module_down_with_it(self):
+        directory = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+        subprocess.run([PYTHON, str(ROOT / "scripts/init_project.py"), "Probe", "--directory", str(directory), "--mode", "hackathon"], check=True, capture_output=True)
+        result = subprocess.run(["bash", str(self.INIT), "--dest", str(directory), "--modules", "core,guardrails", "--stack", "swift"], text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(sorted(p.name for p in directory.iterdir()), [".product-studio"])
+
+    def test_a_legacy_project_without_a_profile_follows_its_mode(self):
+        for mode, installs in (("hackathon", False), ("prototype", False), ("production", True), ("indie", True), ("unheard-of", True)):
+            with self.subTest(mode=mode):
+                directory = Path(tempfile.mkdtemp())
+                self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+                (directory / ".product-studio").mkdir()
+                (directory / ".product-studio/project.json").write_text(json.dumps({"project": {"mode": mode}}))
+                result = subprocess.run(["bash", str(self.INIT), "--dest", str(directory), "--modules", "guardrails", "--stack", "swift"], text=True, capture_output=True)
+                self.assertEqual(result.returncode == 0, installs, result.stderr)
+                if mode in workflow_profile.MODE_PROFILES:
+                    self.assertEqual(workflow_profile.load({"project": {"mode": mode}})["engineering"]["guardrails"] != "off", installs)
+
+    def test_a_profile_with_neither_engineering_nor_risk_tier_still_loads(self):
+        self.assertEqual(workflow_profile.load({"workflow_profile": {"version": workflow_profile.VERSION}})["engineering"]["guardrails"], "standard")
+
+    def test_uninstall_removes_the_four_files_and_keeps_a_lint_config_it_did_not_write(self):
+        files = [".swiftlint.yml", ".swiftlint.ratchet", "scripts/check.sh", "docs/agent/ANTI-SLOP.md"]
+        _, directory = self.scaffold("indie")
+        self.assertEqual([f for f in files if not (directory / f).exists()], [])
+        subprocess.run(["bash", str(self.INIT), "--dest", str(directory), "--uninstall"], check=True, capture_output=True)
+        self.assertEqual([f for f in files if (directory / f).exists()], [])
+
+        own = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, own, ignore_errors=True)
+        (own / ".swiftlint.yml").write_text("# mine\n")
+        installed = subprocess.run(["bash", str(self.INIT), "--dest", str(own), "--modules", "guardrails", "--stack", "swift"], text=True, capture_output=True)
+        self.assertEqual(installed.returncode, 0, installed.stderr)
+        self.assertIn("kept your .swiftlint.yml", installed.stdout)
+        self.assertTrue((own / "scripts/check.sh").exists())
+        subprocess.run(["bash", str(self.INIT), "--dest", str(own), "--uninstall"], check=True, capture_output=True)
+        self.assertEqual((own / ".swiftlint.yml").read_text(), "# mine\n")
+        self.assertEqual([f for f in files[1:] if (own / f).exists()], [])
+
+    def test_a_second_run_writes_nothing(self):
+        _, directory = self.scaffold("indie")
+        again = subprocess.run(["bash", str(self.INIT), "--dest", str(directory), "--modules", "guardrails", "--stack", "swift"], text=True, capture_output=True)
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertEqual(again.stdout.count("wrote:"), 0)
+        self.assertNotIn("kept your .swiftlint.yml", again.stdout)
 
     def test_an_explicit_flag_is_the_only_way_past_off(self):
         result, directory = self.scaffold("prototype", "--guardrails", "standard")
@@ -867,6 +915,93 @@ class GuardrailTests(unittest.TestCase):
             with self.subTest(doc=name):
                 text = (ROOT / "skills/product-studio/references" / name).read_text()
                 self.assertIn("engineering.guardrails` compiles to `off`", text)
+
+
+@unittest.skipUnless(shutil.which("swiftlint"), "swiftlint is not installed")
+class SwiftCheckScriptTests(unittest.TestCase):
+    """The scaffolded scripts/check.sh, run for real against a scratch Swift project."""
+
+    TEMPLATE = ROOT / "skills/workflow-init/templates/guardrails/swift"
+
+    def project(self) -> Path:
+        directory = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+        subprocess.run(["git", "init", "-q"], cwd=directory, check=True)
+        shutil.copy(self.TEMPLATE / "swiftlint.standard.yml", directory / ".swiftlint.yml")
+        shutil.copy(self.TEMPLATE / "swiftlint.ratchet", directory / ".swiftlint.ratchet")
+        (directory / "scripts").mkdir()
+        shutil.copy(self.TEMPLATE / "check.sh", directory / "scripts/check.sh")
+        (directory / "Sources").mkdir()
+        (directory / "Sources/Clean.swift").write_text("let answer = 42\n")
+        return directory
+
+    def check(self, directory: Path, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["bash", "scripts/check.sh", *args], cwd=directory, text=True, capture_output=True)
+
+    def test_a_clean_project_passes(self):
+        result = self.check(self.project())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("check: pass (0 known violations", result.stdout)
+
+    def test_a_print_fails_with_the_banned_rule(self):
+        directory = self.project()
+        (directory / "Sources/Loud.swift").write_text('print("x")\n')
+        result = self.check(directory)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("no_print 0 -> 1", result.stderr)
+
+    def test_a_print_in_a_tests_directory_is_ignored(self):
+        directory = self.project()
+        (directory / "FooTests").mkdir()
+        (directory / "FooTests/LoudTests.swift").write_text('print("x")\n')
+        result = self.check(directory)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_baseline_records_existing_debt_and_update_never_raises_it(self):
+        directory = self.project()
+        (directory / "Sources/Loud.swift").write_text('print("x")\n')
+        refused = self.check(directory, "--update")
+        self.assertEqual(refused.returncode, 1)
+        self.assertIn("refusing to record a higher count", refused.stderr)
+        self.assertEqual((directory / ".swiftlint.ratchet").read_text(), "")
+
+        recorded = self.check(directory, "--baseline")
+        self.assertEqual(recorded.returncode, 0, recorded.stderr)
+        self.assertEqual((directory / ".swiftlint.ratchet").read_text(), "no_print 1\n")
+        self.assertEqual(self.check(directory).returncode, 0)
+
+        (directory / "Sources/Louder.swift").write_text('print("y")\n')
+        self.assertEqual(self.check(directory).returncode, 1)
+        raised = self.check(directory, "--update")
+        self.assertEqual(raised.returncode, 1)
+        self.assertEqual((directory / ".swiftlint.ratchet").read_text(), "no_print 1\n")
+
+    def test_a_fall_must_be_recorded_with_update(self):
+        directory = self.project()
+        (directory / ".swiftlint.ratchet").write_text("no_print 1\n")
+        fell = self.check(directory)
+        self.assertEqual(fell.returncode, 1)
+        self.assertIn("no_print fell 1 -> 0", fell.stderr)
+        self.assertEqual(self.check(directory, "--update").returncode, 0)
+        self.assertEqual((directory / ".swiftlint.ratchet").read_text(), "")
+
+    def test_a_malformed_ratchet_line_is_reported_not_a_traceback(self):
+        directory = self.project()
+        (directory / ".swiftlint.ratchet").write_text("no_print 1\ngarbage\n")
+        result = self.check(directory, "--update")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("malformed ratchet line 2", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_an_instruction_file_over_100_lines_fails(self):
+        directory = self.project()
+        (directory / "AGENTS.md").write_text("line\n" * 100)
+        self.assertEqual(self.check(directory).returncode, 0)
+        (directory / "AGENTS.md").write_text("line\n" * 101)
+        result = self.check(directory)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("AGENTS.md has 101 lines", result.stderr)
+        self.assertIn("docs/agent/RUNBOOKS.md", result.stderr)
 
 
 if __name__ == "__main__":

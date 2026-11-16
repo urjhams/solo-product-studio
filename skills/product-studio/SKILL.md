@@ -56,9 +56,9 @@ When the choice is between Indie App and Startup, or monetization intent is unkn
 - **SaaS**: recurring business workflow, buyer/user distinction, measurable ROI, roles, onboarding, billing, and reliability deferred until the core workflow is proven.
 - **Startup**: beachhead segment, retention, distribution, unit economics, defensibility, and expansion path; never use market size as proof.
 - **Production**: validated product or explicit production request; security, reliability, architecture, migration, observability, and release operations.
+- **Custom**: user-selected combination such as `Indie + one-day MVP + native iOS + paid beta`. Custom still compiles to concrete policy — it is an override set over a durable default, not a free-text label.
 
 Every mode also compiles `engineering.guardrails` (`off` for Prototype and Hackathon, `standard` for Indie, SaaS, Startup and Custom, `strict` for Production). When it is not `off`, read `references/anti-slop.md` before scaffolding or implementation: lint and ban lists over prose rules, an instruction file under 100 lines, golden reference files, and tests that run before "done". When it is `off`, add none of it.
-- **Custom**: user-selected combination such as `Indie + one-day MVP + native iOS + paid beta`. Custom still compiles to concrete policy — it is an override set over a durable default, not a free-text label.
 
 Present the recommended path and ask the user to accept, change mode, customize it, or answer more questions. Persist the selection.
 
