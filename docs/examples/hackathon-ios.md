@@ -38,6 +38,9 @@ The confirmed answers compile to this, and every gate downstream reads it rather
     "lane": "none",
     "independent_required": false
   },
+  "engineering": {
+    "guardrails": "off"
+  },
   "deployment": {
     "allowed": false
   },

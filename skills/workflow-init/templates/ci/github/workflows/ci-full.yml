@@ -21,6 +21,12 @@ jobs:
       # {{STACK_SETUP}}
       - run: |
           {{LINT_CMD}}
+      # Present only when the guardrails module was scaffolded (profile: engineering.guardrails
+      # standard or strict). It fails on any lint violation the debt ratchet does not already hold.
+      # Swift: scripts/check.sh runs swiftlint, so this job needs `runs-on: macos-latest` and swiftlint
+      # installed first (`brew install swiftlint` or the SwiftLint action). On ubuntu-latest as shipped
+      # it fails with "swiftlint is not installed".
+      - run: '[ ! -f scripts/check.sh ] || bash scripts/check.sh'
 
   typecheck:
     runs-on: ubuntu-latest

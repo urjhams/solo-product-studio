@@ -4,7 +4,8 @@
 # {{PLACEHOLDERS}}) belongs to the skill/agent that wraps this, or to you with an editor.
 #
 # Usage:
-#   init.sh [--dest DIR] [--modules core,agents,claude-code,ci,ci-review,engineering,engineering-web] [--force] [--list]
+#   init.sh [--dest DIR] [--modules core,agents,claude-code,ci,ci-review,engineering,engineering-web,guardrails] [--force] [--list]
+#           [--stack swift] [--guardrails off|standard|strict]   (guardrails module only)
 #   init.sh --uninstall [--dest DIR]
 #   init.sh --check          # self-test into a temp dir
 #
@@ -31,6 +32,10 @@ PROFILE=""
 # hold when it did not — workflow-init has to stay usable on its own.
 PS_MODE=""
 PS_CI_REQUIRED=0
+PS_GUARDRAILS=""
+STACK=""
+GUARDRAILS=""
+KEPT_SWIFTLINT=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -41,6 +46,8 @@ while [ $# -gt 0 ]; do
     --check) MODE="check"; shift ;;
     --list) MODE="list"; shift ;;
     --profile) PROFILE="$2"; shift 2 ;;
+    --stack) STACK="$2"; shift 2 ;;
+    --guardrails) GUARDRAILS="$2"; shift 2 ;;
     -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
   esac
@@ -55,12 +62,20 @@ read_profile() {
   eval "$(python3 -c '
 import json, sys
 try:
-    profile = json.load(open(sys.argv[1])).get("workflow_profile") or {}
+    state = json.load(open(sys.argv[1]))
+    profile = state.get("workflow_profile") or {}
 except Exception:
-    profile = {}
-mode = profile.get("mode", "")
+    state, profile = {}, {}
+mode = profile.get("mode") or state.get("project", {}).get("mode") or ""
 print("PS_MODE=" + (mode if mode.isalnum() else ""))
 print("PS_CI_REQUIRED=" + str(int(bool(profile.get("testing", {}).get("ci_required")))))
+# Keep in step with guardrail_level in scripts/workflow_profile.py (the same risk-tier rule) and with
+# load() there, which compiles the mode for state that has no profile.
+if profile:
+    level = profile.get("engineering", {}).get("guardrails") or {"low": "off", "high": "strict"}.get(profile.get("risk_tier"), "standard")
+else:
+    level = {"prototype": "off", "hackathon": "off", "production": "strict"}.get(mode, "standard")
+print("PS_GUARDRAILS=" + (level if level.isalpha() else ""))
 ' "$1" 2>/dev/null)"
 }
 
@@ -139,9 +154,26 @@ EOF
 engineering/browser-verification.md|docs/engineering/browser-verification.md
 EOF
       ;;
+    # Lint config, hazard bans and a debt ratchet. Refused where the profile says `off` (see
+    # install). A stack has a template only once a real repo has run it; any other stack gets the
+    # explainer and nothing else. The lint config follows the level: strict is tighter, not extra.
+    guardrails)
+      echo 'guardrails/ANTI-SLOP.md|docs/agent/ANTI-SLOP.md'
+      case "$STACK" in
+        swift)
+          echo "guardrails/swift/swiftlint.$(guardrail_level).yml|.swiftlint.yml"
+          echo 'guardrails/swift/swiftlint.ratchet|.swiftlint.ratchet'
+          echo 'guardrails/swift/check.sh|scripts/check.sh'
+          ;;
+      esac
+      ;;
     *) echo "unknown module: $1" >&2; exit 1 ;;
   esac
 }
+
+# The level the guardrails module installs: an explicit --guardrails wins, then the compiled
+# profile, then `standard` for a standalone run (asking for the module is the opt-in).
+guardrail_level() { echo "${GUARDRAILS:-${PS_GUARDRAILS:-standard}}"; }
 
 install() {
   local installed=0 skipped=0
@@ -149,7 +181,16 @@ install() {
   # Validate up front: an exit inside `< <(map_module …)` process substitution
   # doesn't propagate, so a typo'd module would otherwise silently no-op.
   for mod in "${mods[@]}"; do
-    case "$mod" in core|agents|claude-code|ci|ci-review|engineering|engineering-web) ;; *) echo "unknown module: $mod" >&2; exit 1 ;; esac
+    case "$mod" in core|agents|claude-code|ci|ci-review|engineering|engineering-web|guardrails) ;; *) echo "unknown module: $mod" >&2; exit 1 ;; esac
+    if [ "$mod" = guardrails ]; then
+      case "$(guardrail_level)" in
+        standard|strict) ;;
+        off) echo "guardrails: the profile compiled engineering.guardrails to off${PS_MODE:+ (mode $PS_MODE)}; no module was installed." >&2
+             echo "  A prototype or hackathon carries no linter to maintain. To opt in anyway: --guardrails standard" >&2
+             exit 1 ;;
+        *) echo "guardrails: unknown level '$(guardrail_level)' (expected off, standard or strict); no module was installed." >&2; exit 1 ;;
+      esac
+    fi
   done
   # Every source must exist before anything is written. The engineering modules read
   # from a sibling skill, so a workflow-init copied out on its own would otherwise
@@ -182,7 +223,10 @@ install() {
         if [ "$FORCE" = 1 ] && grep -q "	$dst\$" "$DEST/$MANIFEST" && [ "$(sha "$to")" = "$(grep "	$dst\$" "$DEST/$MANIFEST" | awk '{print $1}')" ]; then
           : # unmodified generated file — regenerate below
         else
-          echo "skip (exists): $dst"; skipped=$((skipped+1)); continue
+          echo "skip (exists): $dst"; skipped=$((skipped+1))
+          # Only a file the scaffold did not write counts as the user's own lint config.
+          if [ "$dst" = .swiftlint.yml ] && ! grep -q "	$dst\$" "$DEST/$MANIFEST"; then KEPT_SWIFTLINT=1; fi
+          continue
         fi
       fi
       mkdir -p "$(dirname "$to")"
@@ -208,6 +252,21 @@ install() {
   echo "     and _qa-agent.template.md once for the user-visible surface (or delete it if there is none)."
   echo "  3. claude-code module: hooks activate on next session; verify with a throwaway 'gh pr create' dry-run."
   case ",$MODULES," in *,ci-review,*) echo "  4. ci-review module: set the API key secret — gh secret set ANTHROPIC_API_KEY" ;; esac
+  case ",$MODULES," in *,guardrails,*)
+    if [ -f "$DEST/scripts/check.sh" ]; then
+      echo "  5. guardrails module ($(guardrail_level)): run scripts/check.sh once (needs the linter installed), name two golden"
+      echo "     reference files in AGENTS.md, and keep AGENTS.md under 100 lines (check.sh fails above that)."
+      echo "     A repo that already has violations: run scripts/check.sh --baseline once to record today's debt, then"
+      echo "     review the .swiftlint.ratchet diff. A new project keeps the empty ratchet: zero tolerance."
+      if [ "$KEPT_SWIFTLINT" = 1 ]; then
+        echo "     kept your .swiftlint.yml: merge the custom_rules from templates/guardrails/swift/swiftlint.$(guardrail_level).yml by hand;"
+        echo "     until you do, none of the ban rules are installed."
+      fi
+    else
+      echo "  5. guardrails module: no template for stack '${STACK:-unset}' yet; docs/agent/ANTI-SLOP.md is the spec. Wire the"
+      echo "     stack's linter, a ban list and a scripts/check.sh by hand, then add the template after it has run on a real repo."
+    fi ;;
+  esac
   echo "  Uninstall anytime: init.sh --uninstall (removes only unmodified generated files)."
 }
 
@@ -291,6 +350,24 @@ check() {
   grep -q '^  push:' "$ci_tmp/durable/.github/workflows/ci.yml" || { echo "DURABLE CI MISSING default-branch push trigger"; fail=1; }
   grep -q '^  push:' "$ci_tmp/fast/.github/workflows/ci.yml" && { echo "FAST CI SHOULD NOT push-trigger"; fail=1; }
   rm -rf "$ci_tmp"
+  # guardrails: refused where the profile says off (and nothing written), tighter at strict, and the
+  # generated instruction file leaves headroom under its 100-line cap for the filled placeholders
+  local g_tmp; g_tmp=$(mktemp -d)
+  ( PS_GUARDRAILS=off DEST="$g_tmp/off" MODULES="guardrails" STACK=swift FORCE=0 install ) >/dev/null 2>&1 \
+    && { echo "GUARDRAILS NOT REFUSED AT off"; fail=1; }
+  [ ! -e "$g_tmp/off/.swiftlint.yml" ] || { echo "GUARDRAILS WROTE FILES AT off"; fail=1; }
+  PS_GUARDRAILS=standard DEST="$g_tmp/std" MODULES="guardrails" STACK=swift FORCE=0 install >/dev/null
+  PS_GUARDRAILS=strict DEST="$g_tmp/strict" MODULES="guardrails" STACK=swift FORCE=0 install >/dev/null
+  for f in .swiftlint.yml .swiftlint.ratchet scripts/check.sh docs/agent/ANTI-SLOP.md; do
+    [ -f "$g_tmp/std/$f" ] || { echo "MISSING guardrails file: $f"; fail=1; }
+  done
+  [ -x "$g_tmp/std/scripts/check.sh" ] || { echo "NOT EXECUTABLE: scripts/check.sh"; fail=1; }
+  [ ! -s "$g_tmp/std/.swiftlint.ratchet" ] || { echo "RATCHET NOT EMPTY on a new project"; fail=1; }
+  if diff -q "$g_tmp/std/.swiftlint.yml" "$g_tmp/strict/.swiftlint.yml" >/dev/null 2>&1; then
+    echo "GUARDRAILS NOT LEVEL-AWARE: standard and strict emitted the same lint config"; fail=1
+  fi
+  rm -rf "$g_tmp"
+  [ "$(wc -l < "$TEMPLATES/core/AGENTS.md")" -le 90 ] || { echo "AGENTS.md TEMPLATE TOO LONG: no headroom under the 100-line cap"; fail=1; }
   rm -rf "$tmp"
   if [ "$fail" = 0 ]; then echo "CHECK OK"; else echo "CHECK FAILED"; exit 1; fi
 }
@@ -301,5 +378,5 @@ case "$MODE" in
   install) install ;;
   uninstall) uninstall ;;
   check) check ;;
-  list) for m in core agents claude-code ci ci-review engineering engineering-web; do echo "[$m]"; map_module "$m" | sed 's/^/  /'; done ;;
+  list) for m in core agents claude-code ci ci-review engineering engineering-web guardrails; do echo "[$m]"; map_module "$m" | sed 's/^/  /'; done ;;
 esac

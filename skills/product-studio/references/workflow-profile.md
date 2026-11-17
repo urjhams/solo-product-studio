@@ -25,8 +25,11 @@ A mode nothing enforces is a label. Before this existed, `hackathon` was a strin
 | `testing.ci_required` | no | no | yes | yes | yes | yes | yes |
 | `review.independent_required` | **no** | **no** | yes | yes | yes | yes | yes |
 | `review.lane` | none | none | offline | offline | offline | offline | offline |
+| `engineering.guardrails` | **off** | **off** | standard | standard | standard | **strict** | standard |
 | `development.merge_policy` | ask | ask | ask | ask | ask | **never** | ask |
 | `deployment.allowed` | no | no | no | no | no | no | no |
+
+`engineering.guardrails` derives from `risk_tier` (low is `off`, high is `strict`, otherwise `standard`) unless the field itself is overridden; a high tier may not override it to `off`. It is how much deterministic checking `workflow-init --modules guardrails` installs — see `references/anti-slop.md` — and it is the line between a demo and a product: `off` scaffolds nothing, so there is nothing to maintain.
 
 `review.lane` and `development.merge_policy` are the two fields the intake asks rather than the mode dictates; the row above is the default each mode compiles to when nobody answers. `lane` picks where the review runs — `offline` is a local reviewer subagent, `online` is the repo's own Actions workflow — and it may not be `none` wherever `independent_required` is true. `merge_policy` is the only field that governs an action the agent takes on the user's behalf: `ask` raises a permission prompt, `auto_on_approve` lets a session run PR → review → merge unattended once a review marker for that exact HEAD says APPROVE, and `never` blocks the merge outright. A high `risk_tier` forces `never` — `human-approval-gate` is in the production safety floor, and an agent merging its own PR is exactly the gate it names.
 
@@ -62,6 +65,9 @@ Cumulative, and never cuttable. An override may add entries; nothing removes one
 | Behavior coverage: every active `BH-###` has a test naming it | `testing.automated_required` | **ci-enforced** — the generated coverage hook |
 | The agent may merge its own PR | `development.merge_policy` | **ci-enforced** — the generated verdict hook's `gh pr merge` gate, plus the deliberate absence of a `gh pr merge` allow entry |
 | Where the independent review runs | `review.lane` | **ci-enforced** on the online lane — the generated `claude-review.yml` runs and posts itself. Advisory on the offline lane: spawning the local reviewer is a RUNBOOKS instruction with no mechanism behind it |
+| `workflow-init --modules guardrails` refuses to scaffold | `engineering.guardrails: off` | **enforced** — `init.sh` exits non-zero |
+| Lint, hazard bans, the debt ratchet and the 100-line `AGENTS.md` cap | `engineering.guardrails` ≥ `standard` | **ci-enforced for Swift on the full CI workflow; advisory otherwise** — generated `scripts/check.sh` exists only for the Swift stack, the CI step exists only when `testing.ci_required` resolves the `ci` module to `ci-full.yml`, and the lint job needs a macOS runner with swiftlint installed. Run `scripts/check.sh` locally before "done" either way |
+| Golden reference files, property and state-machine tests, the command-query reviewer axis | `engineering.guardrails: strict` | advisory — prose in the generated instructions and `docs/agent/ANTI-SLOP.md` |
 | A refactor step follows green | `development.refactor_phase` | advisory |
 | Coverage target | `testing.coverage_target` | advisory |
 

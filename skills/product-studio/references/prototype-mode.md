@@ -121,6 +121,8 @@ Minimum. One runnable check on the flow's core logic — whatever breaks the pro
 
 Not required: independent review of the artifact, exhaustive states, tests beyond the one check, production readiness of any kind.
 
+Guardrails: none. `engineering.guardrails` compiles to `off`, so do not scaffold a linter, a ban list, a debt ratchet or an instruction-file size cap; none of it would be maintained past the validation question. The safety floor still holds. See `references/anti-slop.md`.
+
 Set `project.mode: prototype` at intake so the profile compiles with `review.independent_required: false`. `scripts/workflow_runner.py` reads that field and clears a checkpoint on a passing self review instead of demanding an independent reviewer.
 
 ## Final planning
